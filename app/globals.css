@@ -1,26 +1,770 @@
 @import "tailwindcss";
 
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+
+  --background:#080808;
+
+  --foreground:#ffffff;
+
+  --gold:#D4AF37;
+
+  --gold-soft:rgba(212,175,55,.25);
+
+  --card:#111111;
+
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+
+
+*,
+*::before,
+*::after{
+
+box-sizing:border-box;
+
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+
+
+
+
+html{
+
+scroll-behavior:smooth;
+
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+
+
+
+
+body{
+
+margin:0;
+
+background:var(--background);
+
+color:var(--foreground);
+
+font-family:
+Inter,
+Arial,
+Helvetica,
+sans-serif;
+
+-webkit-font-smoothing:antialiased;
+
+-moz-osx-font-smoothing:grayscale;
+
+}
+
+
+
+
+
+a{
+
+color:inherit;
+
+text-decoration:none;
+
+}
+
+
+
+
+
+button,
+input,
+textarea,
+select{
+
+font-family:inherit;
+
+}
+
+
+
+
+
+/* =========================
+   SCROLL BAR
+========================= */
+
+
+::-webkit-scrollbar{
+
+width:8px;
+
+height:8px;
+
+}
+
+
+
+::-webkit-scrollbar-track{
+
+background:#0b0b0b;
+
+}
+
+
+
+::-webkit-scrollbar-thumb{
+
+background:
+linear-gradient(
+180deg,
+#D4AF37,
+#9c7b1e
+);
+
+border-radius:999px;
+
+}
+
+
+
+
+
+::-webkit-scrollbar-thumb:hover{
+
+background:#f0c84b;
+
+}
+
+
+
+
+
+
+
+/* =========================
+   SELECTION
+========================= */
+
+
+::selection{
+
+background:#D4AF37;
+
+color:#000;
+
+}
+
+
+
+
+
+
+
+/* =========================
+   INPUT SYSTEM
+========================= */
+
+
+.aven-input{
+
+
+width:100%;
+
+
+background:
+
+rgba(255,255,255,.04);
+
+
+
+border:
+
+1px solid
+
+rgba(212,175,55,.25);
+
+
+
+padding:
+
+14px 18px;
+
+
+
+border-radius:
+
+18px;
+
+
+
+color:white;
+
+
+
+outline:none;
+
+
+
+transition:
+
+all .3s ease;
+
+
+
+backdrop-filter:
+
+blur(10px);
+
+-webkit-backdrop-filter:
+
+blur(10px);
+
+
+}
+
+
+
+
+
+.aven-input:hover{
+
+
+border-color:
+
+rgba(212,175,55,.45);
+
+
+}
+
+
+
+
+
+.aven-input:focus{
+
+
+border-color:
+
+#D4AF37;
+
+
+
+box-shadow:
+
+0 0 0 3px
+
+rgba(212,175,55,.12),
+
+0 0 25px
+
+rgba(212,175,55,.15);
+
+
+}
+
+
+
+
+
+.aven-input::placeholder{
+
+color:#777;
+
+}
+
+
+
+
+
+
+
+/* =========================
+ REMOVE NUMBER ARROWS
+========================= */
+
+
+input[type="number"]::-webkit-inner-spin-button,
+
+input[type="number"]::-webkit-outer-spin-button{
+
+
+-webkit-appearance:none;
+
+appearance:none;
+
+margin:0;
+
+}
+
+
+
+
+
+input[type="number"]{
+
+
+-moz-appearance:textfield;
+
+-webkit-appearance:none;
+
+appearance:none;
+
+
+}
+
+
+
+
+
+
+
+
+
+/* =========================
+ LUXURY CARD
+========================= */
+
+
+.luxury-card{
+
+
+background:
+
+linear-gradient(
+
+145deg,
+
+rgba(255,255,255,.06),
+
+rgba(255,255,255,.015)
+
+);
+
+
+
+border:
+
+1px solid
+
+rgba(212,175,55,.2);
+
+
+
+border-radius:
+
+32px;
+
+
+
+box-shadow:
+
+
+0 25px 80px
+
+rgba(0,0,0,.55);
+
+
+
+backdrop-filter:
+
+blur(20px);
+
+
+-webkit-backdrop-filter:
+
+blur(20px);
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+/* =========================
+ GOLD BUTTON
+========================= */
+
+
+.gold-btn{
+
+
+background:
+
+linear-gradient(
+
+135deg,
+
+#D4AF37,
+
+#f3d675
+
+);
+
+
+
+color:black;
+
+
+
+font-weight:800;
+
+
+
+border-radius:999px;
+
+
+
+padding:
+
+14px 32px;
+
+
+
+transition:
+
+all .35s ease;
+
+
+
+box-shadow:
+
+0 10px 30px
+
+rgba(212,175,55,.2);
+
+
+}
+
+
+
+
+.gold-btn:hover{
+
+
+transform:
+
+translateY(-3px) scale(1.03);
+
+
+
+box-shadow:
+
+0 15px 45px
+
+rgba(212,175,55,.45);
+
+
+}
+
+
+
+
+
+.gold-btn:active{
+
+
+transform:
+
+scale(.97);
+
+
+}
+
+
+
+
+
+
+
+
+
+/* =========================
+ GLASS PANEL
+========================= */
+
+
+.glass{
+
+
+background:
+
+rgba(255,255,255,.04);
+
+
+
+border:
+
+1px solid
+
+rgba(255,255,255,.08);
+
+
+
+backdrop-filter:
+
+blur(20px);
+
+
+-webkit-backdrop-filter:
+
+blur(20px);
+
+
+
+border-radius:30px;
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================
+ ANIMATION
+========================= */
+
+
+.fade-in{
+
+
+animation:
+
+fadeIn .5s ease forwards;
+
+
+}
+
+
+
+
+
+.slide-up{
+
+
+animation:
+
+slideUp .5s ease forwards;
+
+
+}
+
+
+
+
+
+
+
+@keyframes fadeIn{
+
+
+from{
+
+opacity:0;
+
+}
+
+
+to{
+
+opacity:1;
+
+}
+
+
+}
+
+
+
+
+
+
+
+@keyframes slideUp{
+
+
+from{
+
+
+opacity:0;
+
+transform:
+
+translateY(25px);
+
+
+}
+
+
+
+to{
+
+
+opacity:1;
+
+transform:
+
+translateY(0);
+
+
+}
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+/* =========================
+ IMAGE QUALITY
+========================= */
+
+
+img{
+
+
+user-select:none;
+
+
+-webkit-user-drag:none;
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+/* =========================
+ MOBILE FIX
+========================= */
+
+
+@media(max-width:768px){
+
+
+body{
+
+overflow-x:hidden;
+
+}
+
+
+
+
+
+.aven-input{
+
+padding:
+
+12px 15px;
+
+
+}
+
+
+
+}
+
+
+
+
+
+
+
+
+
+/* =========================
+ LOADING SHIMMER
+========================= */
+
+
+.shimmer{
+
+
+background:
+
+linear-gradient(
+
+90deg,
+
+#111 25%,
+
+#222 50%,
+
+#111 75%
+
+);
+
+
+
+background-size:
+
+200% 100%;
+
+
+
+animation:
+
+shimmer 1.5s infinite;
+
+
+}
+
+
+
+
+
+
+
+@keyframes shimmer{
+
+
+from{
+
+background-position:
+
+200% 0;
+
+}
+
+
+
+to{
+
+background-position:
+
+-200% 0;
+
+}
+
+
 }
