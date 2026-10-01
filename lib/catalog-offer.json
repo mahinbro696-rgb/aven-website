@@ -1,0 +1,10 @@
+{
+  "revision": "owner-approved-2026-10-01-1190-v1",
+  "price": 1190,
+  "oldPrice": 2500,
+  "products": [
+    { "id": "aven-rose-shawl", "name": "প্যাটার্ন শাল — গোলাপি", "color": "গোলাপি", "mainImage": "/products/pink.png" },
+    { "id": "aven-blue-shawl", "name": "প্যাটার্ন শাল — নীল", "color": "নীল", "mainImage": "/products/Blue.png" },
+    { "id": "aven-golden-shawl", "name": "প্যাটার্ন শাল — হলুদ", "color": "হলুদ", "mainImage": "/products/Yellow.png" }
+  ]
+}
