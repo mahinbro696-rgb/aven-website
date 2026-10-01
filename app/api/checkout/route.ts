@@ -13,16 +13,18 @@ export async function POST(request: Request) {
     let input;
     try { input = validateCheckout(raw); } catch (error) { throw new CheckoutError(error instanceof Error ? error.message : "তথ্য যাচাই করুন।"); }
     const { requestId, ...payload } = input;
+    // Only the isolated CI server can mark an acceptance test. A browser request
+    // cannot activate this mode. It still performs the real database transaction.
+    const acceptanceTest = process.env.GITHUB_ACTIONS === "true" && process.env.AVEN_ORDER_ACCEPTANCE_TEST === "1";
     const fingerprint = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
     const ref = doc(db, "orders", `AVEN-${requestId}`);
     const result = await runTransaction(db, async (transaction) => {
       const existing = await transaction.get(ref);
       if (existing.exists()) {
         const data = existing.data();
-        if (data.fingerprint !== fingerprint) throw new CheckoutError("একই রেফারেন্সের তথ্য বদলেছে। সহায়তার জন্য WhatsApp করুন।", 409, "REQUEST_CONFLICT");
+        if (data.fingerprint !== fingerprint) throw new CheckoutError("একই রেফারেন্সের তথ্য বদলেছে। সহায়তার জন্য যোগাযোগ করুন।", 409, "REQUEST_CONFLICT");
         return { created: false, quote: data.checkoutQuote as Quote };
       }
-      // Firestore transactions require every read before the first write.
       const catalog = new Map<string, Record<string, unknown>>();
       for (const id of [...new Set(input.items.map((line) => line.productId))]) {
         const snapshot = await transaction.get(doc(db, "products", id));
@@ -38,12 +40,13 @@ export async function POST(request: Request) {
         quantity: quote.items.reduce((sum, item) => sum + item.quantity, 0),
         subtotal: quote.subtotal, deliveryCharge: null, paymentStatus: "Not collected",
         status: "Pending", fingerprint, checkoutQuote: quote, source: "aven-shopping-bag",
+        ...(acceptanceTest ? { verificationOnly: true, verificationRun: process.env.GITHUB_RUN_ID || "ci" } : {}),
         createdAt: serverTimestamp(),
       });
       return { created: true, quote };
     });
-    // The DB commit, not notification delivery, determines checkout success.
-    const notificationSent = result.created ? await notifyOrder([
+    // Success requires the database commit. Optional notifications cannot undo it.
+    const notificationSent = result.created && !acceptanceTest ? await notifyOrder([
       "NEW AVEN ORDER", `Reference: ${ref.id}`,
       ...result.quote.items.map((item, index) => `${index + 1}. ${item.name}\nColor: ${item.color || "—"} · Qty: ${item.quantity} · BDT ${item.lineTotal}`),
       `Subtotal: BDT ${result.quote.subtotal}`, "Delivery charge: to be confirmed", "Payment: NOT COLLECTED",
