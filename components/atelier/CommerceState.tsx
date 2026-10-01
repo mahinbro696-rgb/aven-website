@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, u
 import { addLine, CART_KEY, readBag, removePurchased, selection, validateLines, unitCount, type BagLine } from "@/lib/commerce";
 import type { Product } from "@/lib/atelier";
 import { isShowroom } from "@/lib/showroom";
+import { checkedEdit, mergeEdit } from "@/lib/style-studio";
 
 function choose(product: Product, color: string, quantity: number): BagLine {
   if (!isShowroom(product)) return selection(product, color, quantity);
@@ -35,6 +36,8 @@ type Commerce = {
   openBag: () => void; close: () => void; inform: (message: string) => void;
   add: (product: Product, color?: string, quantity?: number) => boolean;
   buy: (product: Product, color?: string, quantity?: number) => void;
+  addSet: (items: BagLine[], products: Product[]) => boolean;
+  buySet: (items: BagLine[], products: Product[]) => boolean;
   replace: (lines: BagLine[]) => void; checkout: () => void;
   purchased: (lines: BagLine[]) => void;
 };
@@ -62,13 +65,25 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     try { setPanel({ type: "checkout", items: [choose(product, color, quantity)], source: "direct", key: crypto.randomUUID() }); }
     catch (error) { setNotice(error instanceof Error ? error.message : "পণ্য নির্বাচন করুন।"); }
   }, []);
+  const addSet = useCallback((items: BagLine[], products: Product[]) => {
+    try {
+      const next = mergeEdit(readBag(snapshot()), items, products);
+      persist(next); setNotice("সম্পূর্ণ সেটটি ব্যাগে যোগ হয়েছে"); setPanel({ type: "bag" }); return true;
+    } catch (error) { setNotice(error instanceof Error ? error.message : "সেটটি যোগ করা যায়নি।"); return false; }
+  }, []);
+  const buySet = useCallback((items: BagLine[], products: Product[]) => {
+    try {
+      const checked = checkedEdit(items, products);
+      setNotice(""); setPanel({ type: "checkout", items: checked, source: "direct", key: crypto.randomUUID() }); return true;
+    } catch (error) { setNotice(error instanceof Error ? error.message : "সেটটি যাচাই করুন।"); return false; }
+  }, []);
   const replace = useCallback((next: BagLine[]) => persist(next), []);
   const checkout = useCallback(() => {
     const items = readBag(snapshot());
     if (items.length) setPanel({ type: "checkout", items, source: "bag", key: crypto.randomUUID() });
   }, []);
   const purchased = useCallback((items: BagLine[]) => persist(removePurchased(readBag(snapshot()), items)), []);
-  return <Context.Provider value={{ lines, count: unitCount(lines), panel, notice, openBag, close, inform, add, buy, replace, checkout, purchased }}>{children}</Context.Provider>;
+  return <Context.Provider value={{ lines, count: unitCount(lines), panel, notice, openBag, close, inform, add, buy, addSet, buySet, replace, checkout, purchased }}>{children}</Context.Provider>;
 }
 export function useCommerce(): Commerce {
   const value = useContext(Context);
