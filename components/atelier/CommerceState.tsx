@@ -1,9 +1,15 @@
 "use client";
-
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
-import { addLine, CART_KEY, readBag, removePurchased, selection, unitCount, type BagLine } from "@/lib/commerce";
+import { addLine, CART_KEY, readBag, removePurchased, selection, validateLines, unitCount, type BagLine } from "@/lib/commerce";
 import type { Product } from "@/lib/atelier";
+import { isShowroom } from "@/lib/showroom";
 
+function choose(product: Product, color: string, quantity: number): BagLine {
+  if (!isShowroom(product)) return selection(product, color, quantity);
+  const selected = color || product.colors[0]?.name || "";
+  if (product.colors.length && !product.colors.some((c) => c.name === selected)) throw new Error("তালিকা থেকে রঙ বেছে নিন।");
+  return validateLines([{ productId: product.id, color: selected, quantity }])[0];
+}
 let fallback = "[]";
 let memoryOnly = false;
 function snapshot(): string {
@@ -48,12 +54,12 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
   const openBag = useCallback(() => setPanel({ type: "bag" }), []);
   const add = useCallback((product: Product, color = "", quantity = 1) => {
     try {
-      persist(addLine(readBag(snapshot()), selection(product, color, quantity)));
+      persist(addLine(readBag(snapshot()), choose(product, color, quantity)));
       setNotice("আপনার Shopping Bag-এ যোগ হয়েছে"); setPanel({ type: "bag" }); return true;
     } catch (error) { setNotice(error instanceof Error ? error.message : "পণ্য যোগ করা যায়নি।"); return false; }
   }, []);
   const buy = useCallback((product: Product, color = "", quantity = 1) => {
-    try { setPanel({ type: "checkout", items: [selection(product, color, quantity)], source: "direct", key: crypto.randomUUID() }); }
+    try { setPanel({ type: "checkout", items: [choose(product, color, quantity)], source: "direct", key: crypto.randomUUID() }); }
     catch (error) { setNotice(error instanceof Error ? error.message : "পণ্য নির্বাচন করুন।"); }
   }, []);
   const replace = useCallback((next: BagLine[]) => persist(next), []);
