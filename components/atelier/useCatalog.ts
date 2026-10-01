@@ -19,12 +19,16 @@ export function useCatalog() {
       if (!response.ok || data.success !== true || !Array.isArray(data.products)) throw new Error("Catalog unavailable");
       if (!active) return;
       const records = data.products as Product[];
-      if (records.some((p) => !p || typeof p.id !== "string" || typeof p.name !== "string" || !Array.isArray(p.colors))) throw new Error("Invalid catalog");
-      // Existing photos stay inquiry-only until the owner publishes their price.
-      setProducts([...records, ...SHOWROOM.filter((p) => !records.some((r) => r.id === p.id))]);
+      if (records.some((p) => !p || typeof p.id !== "string" || typeof p.name !== "string" || !Array.isArray(p.colors) || !Number.isFinite(p.price))) throw new Error("Invalid catalog");
+      // Live publication/deletion/availability wins over display defaults.
+      setProducts(records);
       setStatus(records.length ? "ready" : "empty");
     }).catch(() => {
-      if (active) { setProducts(SHOWROOM); setStatus("unavailable"); }
+      if (active) {
+        // Do not offer stale inventory for purchase during a catalog outage.
+        setProducts((current) => current.map((p) => ({ ...p, available: false })));
+        setStatus("unavailable");
+      }
     }).finally(() => window.clearTimeout(timer));
     return () => { active = false; controller.abort(); window.clearTimeout(timer); };
   }, [retry]);
