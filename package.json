@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "test": "node tests/atelier.cjs",
+    "test": "node tests/atelier.cjs && node tests/commerce.cjs",
     "build": "npm run test && next build",
     "start": "next start",
     "lint": "eslint"
