@@ -6,6 +6,7 @@ import "./atelier.css";
 import "./commerce.css";
 import "./catalog-fix.css";
 import "./mobile-shop.css";
+import "./style-studio.css";
 
 const bengali = Noto_Sans_Bengali({ subsets: ["bengali", "latin"], variable: "--font-bengali", display: "swap" });
 const editorial = Playfair_Display({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-editorial", display: "swap" });
