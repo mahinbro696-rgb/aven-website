@@ -10,10 +10,28 @@ export class CheckoutError extends Error {
 }
 const bursts = new Map<string, { count: number; until: number }>();
 
+/** Compare the browser Origin with the actual HTTP target authority. Next.js
+ * may use localhost in Request.url when the browser used 127.0.0.1 or a proxy.
+ * Never trust X-Forwarded-Host, allow wildcard origins, or ignore scheme/port.
+ */
+export function isSameOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return true;
+  try {
+    const source = new URL(origin);
+    const internal = new URL(request.url);
+    if (source.origin !== origin || !["http:", "https:"].includes(source.protocol)) return false;
+    const host = request.headers.get("host");
+    if (!host) return source.origin === internal.origin;
+    if (/[\s,/\\@?#%]/.test(host)) return false;
+    const target = new URL(`${internal.protocol}//${host}`);
+    return source.origin === target.origin;
+  } catch { return false; }
+}
+
 /** Per-instance abuse guard only; production should also use a distributed edge limit. */
 export async function readCheckoutBody(request: Request): Promise<Record<string, unknown>> {
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) throw new CheckoutError("এই ওয়েবসাইট থেকেই অর্ডার করুন।", 403);
+  if (!isSameOrigin(request)) throw new CheckoutError("এই ওয়েবসাইট থেকেই অর্ডার করুন।", 403);
   if (request.headers.get("sec-fetch-site") === "cross-site") throw new CheckoutError("অনুরোধটি অনুমোদিত নয়।", 403);
   if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) throw new CheckoutError("সঠিক অর্ডার ফর্ম ব্যবহার করুন।", 415);
   const now = Date.now();
@@ -55,14 +73,13 @@ export function quoteCatalog(lines: BagLine[], catalog: Map<string, Record<strin
   for (const line of lines) totals.set(line.productId, (totals.get(line.productId) || 0) + line.quantity);
   const items = lines.map((line) => {
     const raw = catalog.get(line.productId);
-    if (!raw) throw new CheckoutError("একটি পণ্য আর পাওয়া যাচ্ছে না। কার্ট আপডেট করুন।", 409, "CATALOG_CHANGED");
+    if (!raw || raw.published === false || raw.status === "draft") throw new CheckoutError("একটি পণ্য আর পাওয়া যাচ্ছে না। কার্ট আপডেট করুন।", 409, "CATALOG_CHANGED");
     const product = normalizeProduct(line.productId, raw);
     const minor = toMinor(product.price);
     if (!product.available || minor <= 0 || !Number.isSafeInteger(minor) || minor > 100000000)
-      throw new CheckoutError(`${product.name}: স্টক ও দাম WhatsApp-এ জেনে নিন।`, 409, "CATALOG_CHANGED");
+      throw new CheckoutError(`${product.name}: বর্তমান স্টক ও দাম নিশ্চিত করা যাচ্ছে না।`, 409, "CATALOG_CHANGED");
     if (product.colors.length && !product.colors.some((c) => c.name === line.color))
       throw new CheckoutError(`${product.name}: একটি উপলব্ধ রঙ বেছে নিন।`, 409, "CATALOG_CHANGED");
-    // Validate numeric stock when provided, but do not claim or perform stock reservation.
     if (typeof raw.stock === "number" && Number.isFinite(raw.stock) && (totals.get(product.id) || 0) > raw.stock)
       throw new CheckoutError(`${product.name}: নির্বাচিত পরিমাণে স্টক নেই।`, 409, "CATALOG_CHANGED");
     const rawColor = Array.isArray(raw.colors) ? raw.colors.find((c) => c?.name?.trim() === line.color) : undefined;
@@ -88,7 +105,7 @@ export function failure(error: unknown) {
   if (error instanceof CheckoutError) return NextResponse.json({ success: false, message: error.message, code: error.code },
     { status: error.status, headers: { "Cache-Control": "no-store", ...(error.status === 429 ? { "Retry-After": "60" } : {}) } });
   console.error("AVEN_CHECKOUT_FAILED", error instanceof Error ? error.name : "UnknownError");
-  return NextResponse.json({ success: false, code: "TEMPORARY_ERROR", message: "উত্তর নিশ্চিত করা যায়নি। একই অনুরোধ আবার পাঠান অথবা WhatsApp-এ যোগাযোগ করুন।" },
+  return NextResponse.json({ success: false, code: "TEMPORARY_ERROR", message: "উত্তর নিশ্চিত করা যায়নি। একই অনুরোধ আবার পাঠান অথবা আমাদের সঙ্গে যোগাযোগ করুন।" },
     { status: 503, headers: { "Cache-Control": "no-store" } });
 }
 export async function notifyOrder(text: string): Promise<boolean> {
