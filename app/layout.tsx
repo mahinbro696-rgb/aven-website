@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Noto_Sans_Bengali, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import "./atelier.css";
+import "./commerce.css";
 
 const bengali = Noto_Sans_Bengali({ subsets: ["bengali", "latin"], variable: "--font-bengali", display: "swap" });
 const editorial = Playfair_Display({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-editorial", display: "swap" });
