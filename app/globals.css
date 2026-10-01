@@ -1,770 +1,286 @@
 @import "tailwindcss";
 
-
 :root {
-
-  --background:#080808;
-
-  --foreground:#ffffff;
-
-  --gold:#D4AF37;
-
-  --gold-soft:rgba(212,175,55,.25);
-
-  --card:#111111;
-
+  --background: #060606;
+  --foreground: #f7f4eb;
+  --muted: #aaa59a;
+  --gold: #d7b45b;
+  --gold-bright: #f1d98d;
+  --gold-soft: rgba(215, 180, 91, 0.16);
+  --panel: rgba(255, 255, 255, 0.045);
+  --panel-strong: rgba(255, 255, 255, 0.07);
+  --line: rgba(255, 255, 255, 0.1);
 }
-
-
-
 
 *,
 *::before,
-*::after{
-
-box-sizing:border-box;
-
+*::after {
+  box-sizing: border-box;
 }
 
-
-
-
-
-html{
-
-scroll-behavior:smooth;
-
+html {
+  scroll-behavior: smooth;
+  background: var(--background);
 }
 
-
-
-
-
-body{
-
-margin:0;
-
-background:var(--background);
-
-color:var(--foreground);
-
-font-family:
-Inter,
-Arial,
-Helvetica,
-sans-serif;
-
--webkit-font-smoothing:antialiased;
-
--moz-osx-font-smoothing:grayscale;
-
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 82% 8%, rgba(215, 180, 91, 0.12), transparent 30rem),
+    radial-gradient(circle at 8% 45%, rgba(125, 84, 36, 0.08), transparent 28rem),
+    var(--background);
+  color: var(--foreground);
+  font-family:
+    var(--font-geist-sans),
+    "Noto Sans Bengali",
+    "Hind Siliguri",
+    Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-
-
-
-
-a{
-
-color:inherit;
-
-text-decoration:none;
-
+a {
+  color: inherit;
+  text-decoration: none;
 }
-
-
-
-
 
 button,
 input,
 textarea,
-select{
-
-font-family:inherit;
-
+select {
+  font: inherit;
 }
 
-
-
-
-
-/* =========================
-   SCROLL BAR
-========================= */
-
-
-::-webkit-scrollbar{
-
-width:8px;
-
-height:8px;
-
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
 }
 
-
-
-::-webkit-scrollbar-track{
-
-background:#0b0b0b;
-
+button {
+  cursor: pointer;
 }
 
-
-
-::-webkit-scrollbar-thumb{
-
-background:
-linear-gradient(
-180deg,
-#D4AF37,
-#9c7b1e
-);
-
-border-radius:999px;
-
+::selection {
+  background: var(--gold);
+  color: #050505;
 }
 
-
-
-
-
-::-webkit-scrollbar-thumb:hover{
-
-background:#f0c84b;
-
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-
-
-
-
-
-
-/* =========================
-   SELECTION
-========================= */
-
-
-::selection{
-
-background:#D4AF37;
-
-color:#000;
-
+::-webkit-scrollbar-track {
+  background: #090909;
 }
 
-
-
-
-
-
-
-/* =========================
-   INPUT SYSTEM
-========================= */
-
-
-.aven-input{
-
-
-width:100%;
-
-
-background:
-
-rgba(255,255,255,.04);
-
-
-
-border:
-
-1px solid
-
-rgba(212,175,55,.25);
-
-
-
-padding:
-
-14px 18px;
-
-
-
-border-radius:
-
-18px;
-
-
-
-color:white;
-
-
-
-outline:none;
-
-
-
-transition:
-
-all .3s ease;
-
-
-
-backdrop-filter:
-
-blur(10px);
-
--webkit-backdrop-filter:
-
-blur(10px);
-
-
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--gold-bright), #8e6e27);
+  border-radius: 999px;
 }
 
-
-
-
-
-.aven-input:hover{
-
-
-border-color:
-
-rgba(212,175,55,.45);
-
-
+:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 4px;
 }
 
-
-
-
-
-.aven-input:focus{
-
-
-border-color:
-
-#D4AF37;
-
-
-
-box-shadow:
-
-0 0 0 3px
-
-rgba(212,175,55,.12),
-
-0 0 25px
-
-rgba(212,175,55,.15);
-
-
+.section-shell {
+  width: min(calc(100% - 2rem), 80rem);
+  margin-inline: auto;
 }
 
-
-
-
-
-.aven-input::placeholder{
-
-color:#777;
-
+.glass {
+  border: 1px solid var(--line);
+  background: rgba(11, 11, 11, 0.7);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
 }
 
+.luxury-card,
+.surface-card {
+  border: 1px solid rgba(215, 180, 91, 0.16);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.018));
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
 
+.luxury-card {
+  border-radius: 2rem;
+}
 
+.surface-card {
+  border-radius: 1.6rem;
+}
 
+.gold-text {
+  background: linear-gradient(135deg, #fff1b2 0%, var(--gold-bright) 35%, #c39538 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
 
+.gold-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 3.15rem;
+  border: 1px solid rgba(255, 239, 179, 0.34);
+  border-radius: 999px;
+  padding: 0.8rem 1.55rem;
+  background: linear-gradient(135deg, #f5dc8c, #c99c3e);
+  color: #090806;
+  font-weight: 800;
+  box-shadow:
+    0 12px 32px rgba(215, 180, 91, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    filter 220ms ease;
+}
 
+.gold-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.04);
+  box-shadow:
+    0 16px 42px rgba(215, 180, 91, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
 
-/* =========================
- REMOVE NUMBER ARROWS
-========================= */
+.gold-btn:active {
+  transform: translateY(0) scale(0.985);
+}
 
+.outline-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.15rem;
+  border: 1px solid rgba(215, 180, 91, 0.3);
+  border-radius: 999px;
+  padding: 0.8rem 1.55rem;
+  background: rgba(255, 255, 255, 0.025);
+  color: #f4ead0;
+  font-weight: 700;
+  transition:
+    border-color 220ms ease,
+    background 220ms ease,
+    transform 220ms ease;
+}
+
+.outline-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgba(241, 217, 141, 0.7);
+  background: rgba(215, 180, 91, 0.09);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--gold-bright);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 1.7rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold));
+}
+
+.metric-card {
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 1rem 1.1rem;
+}
+
+.aven-input {
+  width: 100%;
+  border: 1px solid rgba(215, 180, 91, 0.22);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 0.9rem 1rem;
+  color: white;
+  outline: none;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.aven-input::placeholder {
+  color: #716e67;
+}
+
+.aven-input:hover {
+  border-color: rgba(215, 180, 91, 0.42);
+}
+
+.aven-input:focus {
+  border-color: var(--gold);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 3px rgba(215, 180, 91, 0.1);
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #111 25%, #1d1d1d 50%, #111 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.45s infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+img {
+  user-select: none;
+  -webkit-user-drag: none;
+}
 
 input[type="number"]::-webkit-inner-spin-button,
-
-input[type="number"]::-webkit-outer-spin-button{
-
-
--webkit-appearance:none;
-
-appearance:none;
-
-margin:0;
-
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
-
-
-
-
-input[type="number"]{
-
-
--moz-appearance:textfield;
-
--webkit-appearance:none;
-
-appearance:none;
-
-
+input[type="number"] {
+  -moz-appearance: textfield;
 }
 
-
-
-
-
-
-
-
-
-/* =========================
- LUXURY CARD
-========================= */
-
-
-.luxury-card{
-
-
-background:
-
-linear-gradient(
-
-145deg,
-
-rgba(255,255,255,.06),
-
-rgba(255,255,255,.015)
-
-);
-
-
-
-border:
-
-1px solid
-
-rgba(212,175,55,.2);
-
-
-
-border-radius:
-
-32px;
-
-
-
-box-shadow:
-
-
-0 25px 80px
-
-rgba(0,0,0,.55);
-
-
-
-backdrop-filter:
-
-blur(20px);
-
-
--webkit-backdrop-filter:
-
-blur(20px);
-
-
-
+@media (max-width: 768px) {
+  .section-shell {
+    width: min(calc(100% - 1.25rem), 80rem);
+  }
 }
 
-
-
-
-
-
-
-
-
-
-
-/* =========================
- GOLD BUTTON
-========================= */
-
-
-.gold-btn{
-
-
-background:
-
-linear-gradient(
-
-135deg,
-
-#D4AF37,
-
-#f3d675
-
-);
-
-
-
-color:black;
-
-
-
-font-weight:800;
-
-
-
-border-radius:999px;
-
-
-
-padding:
-
-14px 32px;
-
-
-
-transition:
-
-all .35s ease;
-
-
-
-box-shadow:
-
-0 10px 30px
-
-rgba(212,175,55,.2);
-
-
-}
-
-
-
-
-.gold-btn:hover{
-
-
-transform:
-
-translateY(-3px) scale(1.03);
-
-
-
-box-shadow:
-
-0 15px 45px
-
-rgba(212,175,55,.45);
-
-
-}
-
-
-
-
-
-.gold-btn:active{
-
-
-transform:
-
-scale(.97);
-
-
-}
-
-
-
-
-
-
-
-
-
-/* =========================
- GLASS PANEL
-========================= */
-
-
-.glass{
-
-
-background:
-
-rgba(255,255,255,.04);
-
-
-
-border:
-
-1px solid
-
-rgba(255,255,255,.08);
-
-
-
-backdrop-filter:
-
-blur(20px);
-
-
--webkit-backdrop-filter:
-
-blur(20px);
-
-
-
-border-radius:30px;
-
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-/* =========================
- ANIMATION
-========================= */
-
-
-.fade-in{
-
-
-animation:
-
-fadeIn .5s ease forwards;
-
-
-}
-
-
-
-
-
-.slide-up{
-
-
-animation:
-
-slideUp .5s ease forwards;
-
-
-}
-
-
-
-
-
-
-
-@keyframes fadeIn{
-
-
-from{
-
-opacity:0;
-
-}
-
-
-to{
-
-opacity:1;
-
-}
-
-
-}
-
-
-
-
-
-
-
-@keyframes slideUp{
-
-
-from{
-
-
-opacity:0;
-
-transform:
-
-translateY(25px);
-
-
-}
-
-
-
-to{
-
-
-opacity:1;
-
-transform:
-
-translateY(0);
-
-
-}
-
-
-}
-
-
-
-
-
-
-
-
-
-
-
-/* =========================
- IMAGE QUALITY
-========================= */
-
-
-img{
-
-
-user-select:none;
-
-
--webkit-user-drag:none;
-
-
-}
-
-
-
-
-
-
-
-
-
-
-
-/* =========================
- MOBILE FIX
-========================= */
-
-
-@media(max-width:768px){
-
-
-body{
-
-overflow-x:hidden;
-
-}
-
-
-
-
-
-.aven-input{
-
-padding:
-
-12px 15px;
-
-
-}
-
-
-
-}
-
-
-
-
-
-
-
-
-
-/* =========================
- LOADING SHIMMER
-========================= */
-
-
-.shimmer{
-
-
-background:
-
-linear-gradient(
-
-90deg,
-
-#111 25%,
-
-#222 50%,
-
-#111 75%
-
-);
-
-
-
-background-size:
-
-200% 100%;
-
-
-
-animation:
-
-shimmer 1.5s infinite;
-
-
-}
-
-
-
-
-
-
-
-@keyframes shimmer{
-
-
-from{
-
-background-position:
-
-200% 0;
-
-}
-
-
-
-to{
-
-background-position:
-
--200% 0;
-
-}
-
-
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
