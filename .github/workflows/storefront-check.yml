@@ -10,9 +10,11 @@ concurrency:
   group: storefront-check-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  catalog:
+  storefront:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,47 +22,49 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Read public product catalog without modifying any data
-        shell: bash
-        run: |
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const config = fs.readFileSync('lib/firebase.ts', 'utf8');
-          const project = config.match(/projectId:\s*["']([^"']+)/)?.[1];
-          const apiKey = config.match(/apiKey:\s*["']([^"']+)/)?.[1];
-          if (!project || !apiKey) throw new Error('Firebase configuration not found');
-          const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/products?pageSize=100&key=${encodeURIComponent(apiKey)}`;
-          try {
-            const response = await fetch(url, {signal: AbortSignal.timeout(20000)});
-            const data = await response.json();
-            if (!response.ok) {
-              console.log('CATALOG_DIAGNOSTIC', JSON.stringify({httpStatus: response.status, status: data.error?.status, message: data.error?.message}));
-            } else {
-              console.log('CATALOG_DIAGNOSTIC', JSON.stringify({httpStatus: response.status, count: data.documents?.length || 0, more: !!data.nextPageToken}));
-              for (const doc of data.documents || []) {
-                const f = doc.fields || {};
-                console.log('PUBLIC_PRODUCT', JSON.stringify({id: doc.name.split('/').pop(), name: f.name, price: f.price, category: f.category, available: f.available, stock: f.stock, fieldNames: Object.keys(f)}));
-              }
-            }
-          } catch (error) { console.log('CATALOG_NETWORK_ERROR', error.name); }
-          NODE
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
-      - name: Read installed framework instructions
+      - name: Inspect installed Next.js route and fetch instructions
+        shell: bash
         run: |
+          mkdir -p verification/framework-docs
           if test -d node_modules/next/dist/docs; then
-            find node_modules/next/dist/docs -type f | head -25
-          else
-            echo 'This installed package does not ship next/dist/docs.'
+            find node_modules/next/dist/docs/01-app -type f \( -name 'fetch.md' -o -name 'route.md' -o -name 'css.md' \) | while read -r file; do
+              echo "FRAMEWORK GUIDE: $file"
+              sed -n '1,180p' "$file"
+              cp "$file" "verification/framework-docs/$(basename "$file")"
+            done
           fi
-      - name: Run regression tests
-        run: npm test
-      - name: Archive source for independent inspection
+      - name: Regression tests and production build
+        run: npm run build
+      - name: Install isolated browser tools without changing app dependencies
+        run: |
+          npm install --prefix /tmp/aven-browser --no-audit --no-fund playwright@1.56.1
+          /tmp/aven-browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Start production application
+        run: |
+          npm run start -- --port 3000 > /tmp/aven-server.log 2>&1 &
+          for attempt in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3000/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/aven-server.log
+          exit 1
+      - name: Desktop, mobile, cart and checkout browser verification
+        env:
+          NODE_PATH: /tmp/aven-browser/node_modules
+        run: node tests/storefront-browser.cjs
+      - name: Collect source and verification evidence
         if: always()
-        run: tar --exclude='./node_modules' --exclude='./.git' --exclude='./.next' --exclude='./source.tgz' -czf /tmp/source.tgz .
+        run: |
+          mkdir -p verification
+          test ! -f /tmp/aven-server.log || cp /tmp/aven-server.log verification/server.log
+          tar --exclude='./node_modules' --exclude='./.git' --exclude='./.next' --exclude='./source.tgz' -czf /tmp/source.tgz .
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: storefront-source
-          path: /tmp/source.tgz
+          name: storefront-verification
+          path: |
+            verification/
+            /tmp/source.tgz
           retention-days: 3
