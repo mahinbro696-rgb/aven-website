@@ -4,10 +4,10 @@ import { Noto_Sans_Bengali, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import "./atelier.css";
 import "./commerce.css";
+import "./catalog-fix.css";
 
 const bengali = Noto_Sans_Bengali({ subsets: ["bengali", "latin"], variable: "--font-bengali", display: "swap" });
 const editorial = Playfair_Display({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-editorial", display: "swap" });
-
 export const metadata: Metadata = {
   metadataBase: new URL("https://aven-website.vercel.app"),
   title: { default: "AVEN | ঐতিহ্য, আপনার নিজস্বতায়", template: "%s | AVEN" },
@@ -18,7 +18,6 @@ export const metadata: Metadata = {
   robots: process.env.VERCEL_ENV === "preview" ? { index: false, follow: false } : { index: true, follow: true },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#171e1c" };
-
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return <html lang="bn" className={`${bengali.variable} ${editorial.variable}`}><body>{children}</body></html>;
 }
