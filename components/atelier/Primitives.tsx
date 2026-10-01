@@ -27,15 +27,12 @@ export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
-
 export function Photo({ src, alt, eager = false, sizes = "(max-width: 700px) 90vw, 42vw" }: { src: string; alt: string; eager?: boolean; sizes?: string }) {
   const [failed, setFailed] = useState(false);
   const image = safeImage(src);
   if (failed) return <div className="av-photo-fallback" role="img" aria-label={`${alt} — ছবি পাওয়া যায়নি`}><span>AVEN</span><small>ছবিটি লোড হয়নি</small></div>;
   return <Image src={image} alt={alt} fill sizes={sizes} loading={eager ? "eager" : "lazy"} fetchPriority={eager ? "high" : "auto"} unoptimized={image.startsWith("https://")} onError={() => setFailed(true)} />;
 }
-
-/** Perspective tilt is disabled for touch and reduced-motion preferences. */
 export function Tilt({ children, className = "", strength = 5 }: { children: ReactNode; className?: string; strength?: number }) {
   const reduced = useReducedMotion();
   const rx = useSpring(0, { stiffness: 160, damping: 25 });
@@ -49,31 +46,30 @@ export function Tilt({ children, className = "", strength = 5 }: { children: Rea
   }} onPointerLeave={reset} onPointerCancel={reset}>{children}</motion.div>;
 }
 
-/** Native dialog provides focus containment, Escape support and top-layer rendering. */
-export function Dialog({ children, title, onClose, wide = false }: { children: ReactNode; title: string; onClose: () => void; wide?: boolean }) {
+/** Native dialog supplies focus containment, Escape support and top-layer rendering. */
+export function Dialog({ children, title, onClose, wide = false, variant = "modal" }: {
+  children: ReactNode; title: string; onClose: () => void; wide?: boolean; variant?: "modal" | "drawer" | "checkout";
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => {
     const element = dialog.current;
     const previous = document.documentElement.style.overflow;
-    element?.showModal();
+    if (element && !element.open) element.showModal();
     document.documentElement.style.overflow = "hidden";
     return () => { element?.close(); document.documentElement.style.overflow = previous; };
   }, []);
-  return createPortal(<dialog ref={dialog} className={`av-dialog ${wide ? "av-dialog-wide" : ""}`} aria-labelledby={titleId}
+  return createPortal(<dialog ref={dialog} className={`av-dialog ${wide ? "av-dialog-wide" : ""} av-dialog-${variant}`} aria-labelledby={titleId}
     onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <div className="av-dialog-surface"><div className="av-dialog-head"><h2 id={titleId}>{title}</h2><button type="button" className="av-icon-btn" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="close" /></button></div>{children}</div>
   </dialog>, document.body);
 }
-
 export function Quantity({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   return <div className="av-quantity" aria-label="পরিমাণ"><button type="button" aria-label="পরিমাণ কমান" disabled={value <= 1} onClick={() => onChange(Math.max(1, value - 1))}><Icon name="minus" size={16} /></button><output aria-live="polite">{value}</output><button type="button" aria-label="পরিমাণ বাড়ান" disabled={value >= 20} onClick={() => onChange(Math.min(20, value + 1))}><Icon name="plus" size={16} /></button></div>;
 }
-
 export function Empty({ title, text, children }: { title: string; text: string; children?: ReactNode }) {
   return <div className="av-empty"><Icon name="bag" size={32} /><h3>{title}</h3><p>{text}</p><div>{children}</div></div>;
 }
-
 let memoryWishlist = "[]";
 function wishlistSnapshot() {
   try { return localStorage.getItem("aven-wishlist-v2") || memoryWishlist; } catch { return memoryWishlist; }
