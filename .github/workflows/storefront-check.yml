@@ -54,6 +54,8 @@ jobs:
           done
           cat /tmp/aven-server.log
           exit 1
+      - name: Read-only checkout quote diagnostics
+        run: node tests/quote-diagnostic.cjs
       - name: Mobile catalog, real quotes and mocked final-order browser checks
         env:
           NODE_PATH: /tmp/aven-browser/node_modules
