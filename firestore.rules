@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active != false;
+    }
+
+    function validOrderCreate() {
+      return request.auth == null
+        && request.resource.data.status == "Pending"
+        && request.resource.data.paymentStatus == "Not collected"
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.phone is string
+        && request.resource.data.phone.matches('^01[3-9][0-9]{8}$')
+        && request.resource.data.district is string
+        && request.resource.data.district.size() >= 2
+        && request.resource.data.district.size() <= 80
+        && request.resource.data.address is string
+        && request.resource.data.address.size() >= 10
+        && request.resource.data.address.size() <= 500
+        && request.resource.data.product is string
+        && request.resource.data.quantity is int
+        && request.resource.data.quantity >= 1
+        && request.resource.data.quantity <= 60
+        && request.resource.data.subtotal is number
+        && request.resource.data.subtotal > 0
+        && request.resource.data.source in ["aven-atelier", "aven-shopping-bag"];
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow create: if validOrderCreate();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /admins/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
