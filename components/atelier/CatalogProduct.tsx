@@ -5,11 +5,15 @@ import { money, productMessage, whatsappLink, discountPercent, type Product } fr
 import { canSelect, isShowroom } from "@/lib/showroom";
 import { Icon, Photo, Tilt, Quantity } from "./Primitives";
 
+function colorAvailable(color: Product["colors"][number]) {
+  return color.available !== false && color.stock !== 0;
+}
+
 export function ProductCard({ product, saved, onSave, onQuick, onOrder, onAdd }: {
   product: Product; saved: boolean; onSave: () => void; onQuick: () => void;
   onOrder: (color: string) => void; onAdd: (color: string) => boolean;
 }) {
-  const [color, setColor] = useState(product.colors[0]?.name || "");
+  const [color, setColor] = useState(product.colors.find(colorAvailable)?.name || product.colors[0]?.name || "");
   const [added, setAdded] = useState(false);
   useEffect(() => { if (!added) return; const timer = window.setTimeout(() => setAdded(false), 2000); return () => window.clearTimeout(timer); }, [added]);
   const image = product.colors.find((item) => item.name === color)?.image || product.mainImage;
@@ -24,9 +28,9 @@ export function ProductCard({ product, saved, onSave, onQuick, onOrder, onAdd }:
       <button type="button" className="av-quick-view" onClick={onQuick}>এক নজরে দেখুন <Icon name="plus" size={17} /></button>
     </Tilt>
     <div className="av-card-info"><div className="av-card-category">{product.category}</div><h3><Link href={href}>{product.name}</Link></h3>
-      <div className="av-card-colors">{product.colors.length ? product.colors.map((item) => <button key={item.name} type="button" className={color === item.name ? "is-active" : ""} onClick={() => setColor(item.name)} title={item.name} aria-label={`${item.name} রঙ দেখুন`} aria-pressed={color === item.name}><Photo src={item.image} alt="" sizes="44px" /></button>) : <span className="av-small">বিস্তারিত দেখে পছন্দ করুন</span>}<span className="av-color-name">{color}</span></div>
+      <div className="av-card-colors">{product.colors.length ? product.colors.map((item) => <button key={item.name} type="button" className={`${color === item.name ? "is-active" : ""} ${!colorAvailable(item) ? "is-unavailable" : ""}`} disabled={!colorAvailable(item)} onClick={() => setColor(item.name)} title={!colorAvailable(item) ? `${item.name} — স্টক শেষ` : item.name} aria-label={`${item.name} রঙ ${!colorAvailable(item) ? "স্টক শেষ" : "দেখুন"}`} aria-pressed={color === item.name}><Photo src={item.image} alt="" sizes="44px" /></button>) : <span className="av-small">বিস্তারিত দেখে পছন্দ করুন</span>}<span className="av-color-name">{color}</span></div>
       <div className="av-card-bottom"><div><strong>{product.price > 0 ? money(product.price) : "দাম জেনে নিন"}</strong>{discount > 0 && <del>{money(product.oldPrice)}</del>}</div><Link className="av-card-details-link" href={href}>বিস্তারিত <Icon name="arrow" size={15} /></Link></div>
-      {canSelect(product) ? <div className="av-purchase-actions">
+      {canSelect(product) && (!product.colors.length || colorAvailable(product.colors.find((item) => item.name === color) || product.colors[0])) ? <div className="av-purchase-actions">
         <button type="button" onClick={() => onOrder(color)} className="av-btn av-btn-dark" aria-label={`${product.name} ${inquiry ? "দাম জেনে অর্ডার" : "এখনই কিনুন"}`}>{inquiry ? "দাম জেনে অর্ডার" : "এখনই কিনুন"}<Icon name="arrow" size={17} /></button>
         <button type="button" onClick={() => setAdded(onAdd(color))} className={`av-btn av-add-to-bag ${added ? "is-added" : ""}`} aria-label={`${product.name} কার্টে যোগ করুন`}><Icon name={added ? "check" : "bag"} size={17} />{added ? "যোগ হয়েছে" : "Add to Cart"}</button>
       </div> : <a href={whatsappLink(productMessage(product, color))} className="av-btn av-btn-outline av-stock-inquiry" target="_blank" rel="noopener noreferrer">স্টক ও দাম জেনে নিন <Icon name="chat" size={17} /></a>}
@@ -40,14 +44,18 @@ export function ProductDetails({ product, saved, onSave, onOrder, onAdd, onZoom,
   onAdd: (product: Product, color: string, quantity: number) => boolean;
   onZoom?: (src: string) => void; onNotice: (message: string) => void; compact?: boolean;
 }) {
-  const [color, setColor] = useState(product.colors[0]?.name || "");
+  const [color, setColor] = useState(product.colors.find(colorAvailable)?.name || product.colors[0]?.name || "");
   const [quantity, setQuantity] = useState(1);
   const [main, setMain] = useState(true);
   const [added, setAdded] = useState(false);
   useEffect(() => { if (!added) return; const timer = window.setTimeout(() => setAdded(false), 2000); return () => window.clearTimeout(timer); }, [added]);
   const image = main ? product.mainImage : product.colors.find((item) => item.name === color)?.image || product.mainImage;
-  const selectable = canSelect(product);
+  const selectedVariant = product.colors.find((item) => item.name === color);
+  const selectedAvailable = !product.colors.length || (!!selectedVariant && colorAvailable(selectedVariant));
+  const selectable = canSelect(product) && selectedAvailable;
+  const maxQuantity = selectedVariant?.stock && selectedVariant.stock > 0 ? Math.min(20, selectedVariant.stock) : 20;
   const inquiry = isShowroom(product);
+  useEffect(() => { if (quantity > maxQuantity) setQuantity(maxQuantity); }, [maxQuantity, quantity]);
   const add = () => setAdded(onAdd(product, color, quantity));
   const share = async () => {
     const url = new URL(`/product/${encodeURIComponent(product.id)}`, window.location.origin).href;
@@ -60,15 +68,15 @@ export function ProductDetails({ product, saved, onSave, onOrder, onAdd, onZoom,
     <div className="av-detail-gallery">
       <button type="button" className="av-detail-main-image" onClick={() => onZoom?.(image)} disabled={!onZoom} aria-label="পণ্যের বড় ছবি দেখুন"><Photo key={image} src={image} alt={product.name} eager />{onZoom && <span className="av-zoom-hint"><Icon name="plus" />বড় করে দেখুন</span>}</button>
       <div className="av-gallery-thumbs"><button type="button" className={main ? "is-active" : ""} onClick={() => setMain(true)} aria-label="মূল ছবি দেখুন" aria-pressed={main}><Photo src={product.mainImage} alt="" sizes="70px" /></button>
-        {product.colors.map((item) => <button key={item.name} type="button" onClick={() => { setColor(item.name); setMain(false); }} className={!main && color === item.name ? "is-active" : ""} aria-label={`${item.name} ছবি দেখুন`} aria-pressed={!main && color === item.name}><Photo src={item.image} alt="" sizes="70px" /></button>)}
+        {product.colors.map((item) => <button key={item.name} type="button" disabled={!colorAvailable(item)} onClick={() => { setColor(item.name); setMain(false); }} className={`${!main && color === item.name ? "is-active" : ""} ${!colorAvailable(item) ? "is-unavailable" : ""}`} aria-label={`${item.name} ${!colorAvailable(item) ? "স্টক শেষ" : "ছবি দেখুন"}`} aria-pressed={!main && color === item.name}><Photo src={item.image} alt="" sizes="70px" /></button>)}
       </div>
     </div>
     <div className="av-detail-copy"><p className="av-eyebrow">{product.category}</p>
       {compact ? <h3 className="av-detail-title">{product.name}</h3> : <h1 className="av-detail-title">{product.name}</h1>}
       <div className="av-detail-price"><strong>{product.price > 0 ? money(product.price) : "দাম নিশ্চিত করুন"}</strong>{discountPercent(product) > 0 && <><del>{money(product.oldPrice)}</del><span>{discountPercent(product)}% ছাড়</span></>}</div>
       <p className="av-detail-description">{product.description || "এই পণ্যের কাপড়, মাপ ও অন্যান্য তথ্য জানতে AVEN-এর সঙ্গে সরাসরি কথা বলুন।"}</p>
-      <div className="av-detail-option"><span>রঙ {color && <strong>/ {color}</strong>}</span><div className="av-color-options">{product.colors.length ? product.colors.map((item) => <button key={item.name} type="button" className={color === item.name ? "is-active" : ""} aria-pressed={color === item.name} onClick={() => { setColor(item.name); setMain(false); }}>{item.name}{color === item.name && <Icon name="check" size={13} />}</button>) : <p className="av-small">রঙের তথ্য WhatsApp-এ নিশ্চিত করুন।</p>}</div></div>
-      <div className="av-detail-quantity"><span>পরিমাণ</span><Quantity value={quantity} onChange={setQuantity} /></div>
+      <div className="av-detail-option"><span>রঙ {color && <strong>/ {color}</strong>}</span><div className="av-color-options">{product.colors.length ? product.colors.map((item) => <button key={item.name} type="button" disabled={!colorAvailable(item)} className={`${color === item.name ? "is-active" : ""} ${!colorAvailable(item) ? "is-unavailable" : ""}`} aria-pressed={color === item.name} onClick={() => { setColor(item.name); setMain(false); }}>{item.name}{!colorAvailable(item) ? " · স্টক শেষ" : color === item.name ? <Icon name="check" size={13} /> : null}</button>) : <p className="av-small">রঙের তথ্য WhatsApp-এ নিশ্চিত করুন।</p>}</div></div>
+      <div className="av-detail-quantity"><span>পরিমাণ</span><Quantity value={quantity} onChange={setQuantity} max={maxQuantity} /></div>
       {product.price > 0 && <div className="av-detail-total"><span>পণ্যের মোট</span><strong>{money(product.price * quantity)}</strong></div>}
       <p className="av-delivery-note">{inquiry ? "দাম ও স্টক এখনো প্রকাশিত নয়। পরের ধাপে নির্বাচিত পণ্যসহ WhatsApp-এ কথা বলতে পারবেন।" : "ডেলিভারি চার্জ ও পেমেন্টের নিয়ম অর্ডার নিশ্চিত করার আগে জানানো হবে।"}</p>
       <div className="av-detail-buttons">{selectable && <div className="av-purchase-actions"><button type="button" className="av-btn av-btn-gold" onClick={() => onOrder(product, color, quantity)}>{inquiry ? "দাম জেনে অর্ডার করুন" : "এখনই কিনুন"}<Icon name="arrow" /></button><button type="button" className={`av-btn av-add-to-bag ${added ? "is-added" : ""}`} onClick={add}><Icon name={added ? "check" : "bag"} />{added ? "যোগ হয়েছে" : "Add to Cart"}</button></div>}
