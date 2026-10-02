@@ -100,7 +100,7 @@ export async function POST(request: Request) {
 
     let duplicate = false;
     try {
-      await createPublicOrderDocument(orderId, {
+      duplicate = (await createPublicOrderDocument(orderId, {
         ...customerInput,
         product: product.name,
         unitPrice: product.price,
@@ -111,10 +111,12 @@ export async function POST(request: Request) {
         fingerprint,
         source: "aven-atelier",
         createdAt: new Date(),
-      });
+      }, fingerprint)).duplicate;
     } catch (error) {
-      if (error instanceof FirestoreCreateError && error.alreadyExists) duplicate = true;
-      else throw error;
+      if (error instanceof FirestoreCreateError && error.conflict) {
+        throw new OrderError("এই অর্ডার রেফারেন্সের তথ্য বদলেছে। ফর্মটি বন্ধ করে আবার খুলুন।", 409);
+      }
+      throw error;
     }
 
     const notificationSent = duplicate ? false : await notify([
