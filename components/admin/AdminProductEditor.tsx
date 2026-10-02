@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { collection, doc, getDocs, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, deleteField, doc, getDocs, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import { categoryKeyForProduct, categoryName } from "@/lib/shop-categories";
 import type { Product } from "@/lib/atelier";
 import { useCategoryOptions } from "./useCategoryOptions";
 
-type Color = { name: string; image: string; file?: File | null };
+type Color = { name: string; image: string; file?: File | null; stock: string };
 
 function asProduct(id: string, raw: Record<string, unknown>): Product {
   return {
@@ -20,7 +20,7 @@ function asProduct(id: string, raw: Record<string, unknown>): Product {
     oldPrice: Number(raw.oldPrice || 0),
     description: String(raw.description || ""),
     mainImage: String(raw.mainImage || "/products/pink.png"),
-    colors: Array.isArray(raw.colors) ? raw.colors as { name: string; image: string }[] : [],
+    colors: Array.isArray(raw.colors) ? raw.colors.map((item) => ({ name: String(item?.name || ""), image: String(item?.image || raw.mainImage || "/products/pink.png"), stock: typeof item?.stock === "number" ? item.stock : undefined })) : [],
     available: raw.available !== false,
     createdAt: typeof (raw.createdAt as { seconds?: number })?.seconds === "number"
       ? Number((raw.createdAt as { seconds?: number }).seconds) * 1000
@@ -84,7 +84,7 @@ export default function AdminProductEditor() {
       description: product.description,
       mainImage: product.mainImage,
       available: product.available,
-      colors: product.colors.map((color) => ({ ...color, file: null })),
+      colors: product.colors.map((color) => ({ ...color, file: null, stock: typeof color.stock === "number" ? String(color.stock) : "" })),
     });
   }
 
@@ -106,6 +106,10 @@ export default function AdminProductEditor() {
       setMessage("প্রতিটি color-এর নাম দিন।");
       return;
     }
+    if (form.colors.some((color) => color.stock.trim() && (!Number.isInteger(Number(color.stock)) || Number(color.stock) < 0 || Number(color.stock) > 99999))) {
+      setMessage("Stock দিলে ০ থেকে ৯৯,৯৯৯-এর মধ্যে পূর্ণ সংখ্যা দিন।");
+      return;
+    }
 
     setSaving(true);
     setMessage("");
@@ -114,7 +118,10 @@ export default function AdminProductEditor() {
       const colors = await Promise.all(form.colors.map(async (color) => ({
         name: color.name.trim(),
         image: color.file ? await upload(color.file, selectedId) : (color.image || mainImage),
+        ...(color.stock.trim() ? { stock: Number(color.stock), available: Number(color.stock) > 0 } : {}),
       })));
+      const tracked = form.colors.length > 0 && form.colors.every((color) => color.stock.trim());
+      const totalStock = tracked ? form.colors.reduce((sum, color) => sum + Number(color.stock), 0) : null;
 
       await setDoc(doc(db, "products", selectedId), {
         name: form.name.trim(),
@@ -125,7 +132,8 @@ export default function AdminProductEditor() {
         description: form.description.trim(),
         mainImage,
         colors,
-        available: form.available,
+        stock: totalStock === null ? deleteField() : totalStock,
+        available: form.available && totalStock !== 0,
         published: form.available,
         updatedAt: serverTimestamp(),
       }, { merge: true });
@@ -177,9 +185,10 @@ export default function AdminProductEditor() {
         </div>
 
         <div className="av-admin-variant-editor">
-          <div className="av-admin-panel-head"><div><h2>Colors</h2><p>এক product-এর color variants</p></div><button className="av-admin-action" type="button" onClick={() => setForm({ ...form, colors: [...form.colors, { name: "", image: form.mainImage, file: null }] })}>+ Color</button></div>
+          <div className="av-admin-panel-head"><div><h2>Colors</h2><p>এক product-এর color variants</p></div><button className="av-admin-action" type="button" onClick={() => setForm({ ...form, colors: [...form.colors, { name: "", image: form.mainImage, file: null, stock: "" }] })}>+ Color</button></div>
           {form.colors.map((color, index) => <div className="av-admin-variant-row" key={index}>
             <input value={color.name} placeholder="Color name" onChange={(event) => setForm({ ...form, colors: form.colors.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) })} />
+            <input type="number" min="0" max="99999" step="1" value={color.stock} placeholder="Stock (optional)" onChange={(event) => setForm({ ...form, colors: form.colors.map((item, itemIndex) => itemIndex === index ? { ...item, stock: event.target.value } : item) })} />
             <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
               const file = event.target.files?.[0] || null;
               setForm({ ...form, colors: form.colors.map((item, itemIndex) => itemIndex === index ? { ...item, file } : item) });
