@@ -1,10 +1,10 @@
 /** Shared storefront data. Never place private credentials here. */
 export const CONTACT = { display: "01987744985", international: "+8801987744985", whatsapp: "8801987744985" } as const;
 export const SITE_URL = "https://aven-website.vercel.app";
-export type ProductColor = { name: string; image: string };
+export type ProductColor = { name: string; image: string; stock?: number; available?: boolean };
 export type Product = {
   id: string; name: string; category: string; price: number; oldPrice: number;
-  description: string; mainImage: string; colors: ProductColor[]; available: boolean; createdAt: number;
+  description: string; mainImage: string; colors: ProductColor[]; available: boolean; stock?: number; createdAt: number;
 };
 export function whatsappLink(message = "আসসালামু আলাইকুম, AVEN-এর কালেকশন সম্পর্কে জানতে চাই।"): string {
   return `https://wa.me/${CONTACT.whatsapp}?text=${encodeURIComponent(message)}`;
@@ -21,7 +21,7 @@ export function normalizeProduct(id: string, raw: Record<string, unknown>): Prod
   const colors: ProductColor[] = [];
   if (Array.isArray(raw.colors)) for (const item of raw.colors) {
     if (item && typeof item === "object" && typeof item.name === "string" && item.name.trim() && !colors.some((c) => c.name === item.name.trim()))
-      colors.push({ name: item.name.trim(), image: safeImage(item.image || raw.mainImage) });
+      colors.push({ name: item.name.trim(), image: safeImage(item.image || raw.mainImage), stock: typeof item.stock === "number" && Number.isFinite(item.stock) && item.stock >= 0 ? item.stock : undefined, available: item.available !== false });
   }
   let createdAt = 0;
   const timestamp = raw.createdAt as { toMillis?: () => number; seconds?: number } | undefined;
@@ -32,7 +32,8 @@ export function normalizeProduct(id: string, raw: Record<string, unknown>): Prod
     category: typeof raw.category === "string" && raw.category.trim() ? raw.category.trim() : "কালেকশন",
     price: positive(raw.price), oldPrice: positive(raw.oldPrice), description: typeof raw.description === "string" ? raw.description : "",
     mainImage: safeImage(raw.mainImage), colors,
-    available: raw.available !== false && raw.inStock !== false && raw.stock !== 0,
+    available: raw.available !== false && raw.inStock !== false && raw.stock !== 0 && !(colors.length > 0 && colors.every((color) => color.available === false || color.stock === 0)),
+    stock: typeof raw.stock === "number" && Number.isFinite(raw.stock) && raw.stock >= 0 ? raw.stock : undefined,
     createdAt,
   };
 }
