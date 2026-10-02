@@ -6,6 +6,7 @@ import "./atelier.css";
 import "./commerce.css";
 import "./catalog-fix.css";
 import "./mobile-shop.css";
+import "./category-shop.css";
 import "./style-studio.css";
 
 const bengali = Noto_Sans_Bengali({ subsets: ["bengali", "latin"], variable: "--font-bengali", display: "swap" });
