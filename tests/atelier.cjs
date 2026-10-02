@@ -61,24 +61,41 @@ test('unexpected client price and status fields are stripped', () => { const inp
 
 function harness(options = {}) {
   const records = new Map([['products/p1', { ...baseProduct, ...(options.product || {}) }]]);
+  const fingerprints = new Map();
   let writes = 0;
   let notifications = 0;
   const ref = (_, group, id) => ({ id, path: `${group}/${id}` });
   const snapshot = (reference) => ({ id: reference.id, exists: () => records.has(reference.path), data: () => records.get(reference.path) });
   const firestore = {
-    doc: ref, serverTimestamp: () => 'TEST_TIMESTAMP',
-    getDoc: async (reference) => { if (options.settingsError) throw new Error('permission-denied'); return snapshot(reference); },
-    runTransaction: async (_, run) => {
-      if (options.databaseError) throw new Error('permission-denied');
-      const pending = [];
-      const result = await run({ get: async (reference) => snapshot(reference), set: (reference, value) => pending.push([reference.path, value]) });
-      for (const [key, value] of pending) { records.set(key, value); writes++; }
-      return result;
+    doc: ref,
+    getDoc: async (reference) => snapshot(reference),
+  };
+  class FirestoreCreateError extends Error {
+    constructor(message, status, alreadyExists = false, conflict = false) {
+      super(message); this.status = status; this.alreadyExists = alreadyExists; this.conflict = conflict;
+    }
+  }
+  const orderWriter = {
+    FirestoreCreateError,
+    createPublicOrderDocument: async (orderId, value, fingerprint) => {
+      if (options.databaseError) throw new FirestoreCreateError('database unavailable', 503);
+      const requestId = orderId.replace(/^AVEN-/, '');
+      if (fingerprints.has(requestId)) {
+        if (fingerprints.get(requestId) === fingerprint) return { duplicate: true };
+        throw new FirestoreCreateError('payload conflict', 409, true, true);
+      }
+      fingerprints.set(requestId, fingerprint);
+      records.set(`orders/${orderId}`, value);
+      writes++;
+      return { duplicate: false };
     },
   };
   const route = load('app/api/order/route.ts', {
     'next/server': { NextResponse: { json: (data, init) => Response.json(data, init) } },
-    'firebase/firestore': firestore, '@/lib/firebase': { db: {} }, '@/lib/atelier': lib,
+    'firebase/firestore': firestore,
+    '@/lib/firebase': { db: {} },
+    '@/lib/atelier': lib,
+    '@/lib/firestore-rest': orderWriter,
   }, {
     env: options.env || {},
     fetch: async () => { notifications++; if (options.notificationError) throw new Error('notification unavailable'); return Response.json({ ok: true }); },
@@ -116,7 +133,7 @@ test('large declared request is rejected', async () => { const h = harness(); as
 test('large streamed body is bounded without content-length', async () => { const h = harness(); assert.equal((await h.request('x'.repeat(9000))).status, 413); });
 test('database failure never displays success', async () => { const h = harness({ databaseError: true }); const r = await h.request(valid()); assert.equal(r.status, 503); assert.equal(r.data.success, false); });
 test('missing Telegram configuration does not reject a saved order', async () => { const h = harness(); const r = await h.request(valid()); assert.equal(r.status, 201); assert.equal(r.data.notificationSent, false); });
-test('Telegram settings permission failure does not lose the order', async () => { const h = harness({ settingsError: true }); assert.equal((await h.request(valid())).status, 201); assert.equal(h.writes(), 1); });
+test('order saving does not depend on client-readable Telegram settings', async () => { const h = harness(); assert.equal((await h.request(valid())).status, 201); assert.equal(h.writes(), 1); });
 test('notification failure does not reject a saved order', async () => {
   const h = harness({ env: { TELEGRAM_BOT_TOKEN: 'test-token', TELEGRAM_CHAT_ID: 'test-chat' }, notificationError: true });
   const r = await h.request(valid()); assert.equal(r.status, 201); assert.equal(r.data.notificationSent, false); assert.equal(h.notifications(), 1);
