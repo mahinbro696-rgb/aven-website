@@ -5,9 +5,9 @@ import { doc, collection, getDocFromServer, setDoc, serverTimestamp } from "fire
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import { SHOWROOM } from "@/lib/showroom";
+import { useCategoryOptions } from "@/components/admin/useCategoryOptions";
 
 type Variant = { key: string; name: string; url: string; file: File | null };
-const CATEGORY_OPTIONS = ["কুশিকাটা চাদর", "জামদানি চাদর", "প্রিমিয়াম শাল"];
 const initial = { name: SHOWROOM[0].name, category: "কুশিকাটা চাদর", price: "", oldPrice: "", description: "" };
 function codeOf(error: unknown): string { return error && typeof error === "object" && "code" in error ? String(error.code) : ""; }
 async function timeout<T>(promise: Promise<T>): Promise<T> {
@@ -16,6 +16,7 @@ async function timeout<T>(promise: Promise<T>): Promise<T> {
   finally { if (timer) clearTimeout(timer); }
 }
 export default function ProductManager() {
+  const categoryOptions = useCategoryOptions();
   const [form, setForm] = useState(initial);
   const [selectedId, setSelectedId] = useState(SHOWROOM[0].id);
   const [imageUrl, setImageUrl] = useState(SHOWROOM[0].mainImage);
@@ -89,7 +90,7 @@ export default function ProductManager() {
       <label>নিজের ছবি আপলোড (ঐচ্ছিক)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = acceptFile(event.target.files?.[0]); if (file) setMainFile(file); }} /></label>
       {preview && <Image src={preview} alt="নির্বাচিত ছবির প্রিভিউ" width={200} height={220} unoptimized />}
       <legend>২. পণ্যের তথ্য ও আসল দাম</legend><label>পণ্যের নাম<input required value={form.name} maxLength={150} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-      <label>ক্যাটাগরি<select required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORY_OPTIONS.map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
+      <label>ক্যাটাগরি<select required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{categoryOptions.map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
       <div className="av-admin-prices"><label>বিক্রয়মূল্য (টাকা)<input name="price" type="number" min="0.01" max="1000000" step="0.01" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="আসল বিক্রয়মূল্য" /></label><label>আগের মূল্য (ঐচ্ছিক)<input type="number" min="0" max="1000000" step="0.01" value={form.oldPrice} onChange={(e) => setForm({ ...form, oldPrice: e.target.value })} placeholder="ছাড় না থাকলে খালি রাখুন" /></label></div>
       <label>বিবরণ<textarea rows={4} maxLength={3000} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="কাপড়, মাপ ও সঠিক পণ্যের তথ্য" /></label>
       <legend>৩. রঙ (প্রযোজ্য হলে)</legend>{variants.map((v) => <div className="av-admin-variant" key={v.key}><label>রঙের নাম<input value={v.name} maxLength={100} onChange={(e) => setVariants((all) => all.map((item) => item.key === v.key ? { ...item, name: e.target.value } : item))} required /></label><label>এই রঙের ছবি<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { const file = acceptFile(e.target.files?.[0]); if (file) setVariants((all) => all.map((item) => item.key === v.key ? { ...item, file } : item)); }} /></label><button type="button" className="av-admin-secondary" onClick={() => setVariants((all) => all.filter((item) => item.key !== v.key))}>রঙটি সরান</button></div>)}
