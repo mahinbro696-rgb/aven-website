@@ -100,7 +100,7 @@ export default function AdminDashboard() {
     orders: orders.length,
     pending: orders.filter((order) => (order.status || "Pending") === "Pending").length,
     delivered: orders.filter((order) => order.status === "Delivered").length,
-    products: products.length,
+    products: products.filter((product) => product.available).length,
   }), [orders, products]);
 
   const categories = useMemo(() => productCategories(products), [products]);
@@ -127,6 +127,33 @@ export default function AdminDashboard() {
     setTab(next);
     setMenuOpen(false);
   }
+  function exportOrders() {
+    const rows = [
+      ["Reference", "Status", "Customer", "Phone", "District", "Address", "Product", "Color", "Quantity", "Subtotal", "Payment"],
+      ...filteredOrders.map((order) => [
+        order.id,
+        order.status || "Pending",
+        order.name || "",
+        order.phone || "",
+        order.district || "",
+        order.address || "",
+        order.product || "",
+        order.color || "",
+        String(order.quantity || 1),
+        typeof order.subtotal === "number" ? String(order.subtotal) : "",
+        order.paymentStatus || "Not collected",
+      ]),
+    ];
+    const csv = rows.map((row) => row.map((value) => '"' + String(value).replaceAll('"', '""') + '"').join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "aven-orders-" + new Date().toISOString().slice(0, 10) + ".csv";
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
 
   return <div className="av-admin">
     <div className="av-admin-shell">
@@ -183,7 +210,7 @@ export default function AdminDashboard() {
             <Metric label="Total orders" value={metrics.orders} />
             <Metric label="Pending" value={metrics.pending} />
             <Metric label="Delivered" value={metrics.delivered} />
-            <Metric label="Published products" value={metrics.products} />
+            <Metric label="Visible products" value={metrics.products} />
           </section>
 
           <div className="av-admin-grid">
@@ -230,7 +257,7 @@ export default function AdminDashboard() {
         {tab === "orders" && <section className="av-admin-panel">
           <div className="av-admin-panel-head">
             <div><h2>Order management</h2><p>Customer details, products এবং status manage করুন।</p></div>
-            <button className="av-admin-action" onClick={() => void load()}>Refresh</button>
+            <div className="av-admin-order-head-actions"><button className="av-admin-action" onClick={exportOrders}>Export CSV</button><button className="av-admin-action" onClick={() => void load()}>Refresh</button></div>
           </div>
 
           <div className="av-admin-toolbar">
@@ -262,6 +289,7 @@ export default function AdminDashboard() {
                 {order.status === "Confirmed" && <button className="av-admin-action primary" onClick={() => void setOrderStatus(order, "Delivered")}>Mark delivered</button>}
                 {order.status !== "Cancelled" && order.status !== "Delivered" && <button className="av-admin-action danger" onClick={() => void setOrderStatus(order, "Cancelled")}>Cancel</button>}
                 {order.phone && <a className="av-admin-action" href={"tel:" + order.phone}>Call customer</a>}
+                {order.phone && /^01[3-9]\d{8}$/.test(order.phone) && <a className="av-admin-action" href={"https://wa.me/88" + order.phone} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
               </div>
             </article>) : <div className="av-admin-empty">এই filter-এ কোনো order পাওয়া যায়নি।</div>}
           </div>
