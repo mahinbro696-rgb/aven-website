@@ -61,6 +61,10 @@ jobs:
         env:
           NODE_PATH: /tmp/aven-browser/node_modules
         run: node tests/mobile-order-browser.cjs
+      - name: Category-first storefront browser checks
+        env:
+          NODE_PATH: /tmp/aven-browser/node_modules
+        run: node tests/category-browser.cjs
       - name: Personal Edit selection safety and desktop mobile browser checks
         env:
           NODE_PATH: /tmp/aven-browser/node_modules
