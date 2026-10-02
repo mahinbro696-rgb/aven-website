@@ -69,9 +69,34 @@ export async function POST(request: Request) {
       throw new OrderError("অর্ডারের তথ্য প্রয়োজনের চেয়ে বড়।", 413);
     }
 
+    const reader = request.body?.getReader();
+    if (!reader) throw new OrderError("অর্ডারের তথ্য পাওয়া যায়নি।");
+    const chunks: Uint8Array[] = [];
+    let bytes = 0;
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > 8192) {
+          await reader.cancel();
+          throw new OrderError("অর্ডারের তথ্য প্রয়োজনের চেয়ে বড়।", 413);
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    const buffer = new Uint8Array(bytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      buffer.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+
     let json: unknown;
     try {
-      json = await request.json();
+      json = JSON.parse(new TextDecoder().decode(buffer));
     } catch {
       throw new OrderError("অর্ডারের তথ্য পড়া যায়নি।");
     }
