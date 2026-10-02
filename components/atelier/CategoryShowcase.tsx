@@ -12,12 +12,14 @@ export default function CategoryShowcase({
   products,
   selected,
   onSelect,
+  managed = [],
 }: {
   products: Product[];
   selected: string;
   onSelect: (key: string) => void;
+  managed?: ShopCategory[];
 }) {
-  const categories = productCategories(products);
+  const categories = productCategories(products, managed);
 
   return (
     <section className="av-category-hub av-section" id="collections" aria-labelledby="category-title">
