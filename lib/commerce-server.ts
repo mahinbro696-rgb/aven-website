@@ -109,28 +109,19 @@ export function failure(error: unknown) {
     { status: 503, headers: { "Cache-Control": "no-store" } });
 }
 export async function notifyOrder(text: string): Promise<boolean> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return false;
   try {
-    let token = process.env.TELEGRAM_BOT_TOKEN;
-    let chatId = process.env.TELEGRAM_CHAT_ID;
-    if (!token || !chatId) {
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        const settings = await Promise.race([getDoc(doc(db, "settings", "telegram")), new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error("Settings timeout")), 1200);
-        })]);
-        if (settings.exists()) {
-          const value = settings.data();
-          token ||= typeof value.botToken === "string" ? value.botToken : undefined;
-          chatId ||= typeof value.chatId === "string" ? value.chatId : undefined;
-        }
-      } finally { if (timer) clearTimeout(timer); }
-    }
-    if (!token || !chatId) return false;
     const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, signal: AbortSignal.timeout(4500),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(4500),
       body: JSON.stringify({ chat_id: chatId, text: text.slice(0, 3900) }),
     });
     const data = await response.json();
     return response.ok && data.ok === true;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
