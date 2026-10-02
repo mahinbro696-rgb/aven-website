@@ -7,6 +7,9 @@ import { db } from "@/lib/firebase";
 import { productCategories, productsInCategory } from "@/lib/shop-categories";
 import type { Product } from "@/lib/atelier";
 import ProductSection from "./ProductSection";
+import CategoryManager from "./CategoryManager";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
 
 type Tab = "overview" | "products" | "categories" | "orders" | "settings";
 type TimestampLike = { toDate?: () => Date; seconds?: number };
@@ -219,19 +222,9 @@ export default function AdminDashboard() {
 
         {tab === "categories" && <section className="av-admin-panel">
           <div className="av-admin-panel-head">
-            <div><h2>Product categories</h2><p>Product publish করার সময় category নির্বাচন করলে homepage group automatically update হবে।</p></div>
+            <div><h2>Product categories</h2><p>Main collections এবং future custom categories manage করুন।</p></div>
           </div>
-          <div className="av-admin-categories">
-            {categories.map((category) => {
-              const items = productsInCategory(products, category.key);
-              return <article className={"av-admin-category " + (items.length ? "" : "is-empty")} key={category.key}>
-                <small>{category.eyebrow}</small>
-                <h3>{category.name}</h3>
-                <strong>{new Intl.NumberFormat("bn-BD").format(items.length)}</strong>
-                <p>{items.length ? items.map((product) => product.name).slice(0, 3).join(" · ") : "এই category-তে এখনো কোনো published product নেই। Product section থেকে প্রথম product add করুন।"}</p>
-              </article>;
-            })}
-          </div>
+          <CategoryManager products={products} />
         </section>}
 
         {tab === "orders" && <section className="av-admin-panel">
@@ -279,9 +272,10 @@ export default function AdminDashboard() {
             <div><h2>Settings & security</h2><p>Production launch-এর আগে এই অংশ শেষ করতে হবে।</p></div>
           </div>
           <div className="av-admin-settings-note">
-            <p><strong>Admin login:</strong> Firebase Authentication + restrictive Firestore rules configure করা হবে। Client-side password দিয়ে security fake করা হবে না।</p>
+            <p><strong>Admin session:</strong> Firebase Authentication sign-in gate active। Database-side rules deploy করার পর authorization server-side enforce হবে।</p>
             <p><strong>Telegram:</strong> Bot token admin browser-এ দেখানো বা public Firestore document-এ রাখা উচিত নয়। Production-এ <code>TELEGRAM_BOT_TOKEN</code> এবং <code>TELEGRAM_CHAT_ID</code> server environment variables হিসেবে রাখা হবে।</p>
-            <p><strong>Next:</strong> তোমার admin login email confirm করলে secure sign-in flow এবং permission rules-এর implementation করা যাবে।</p>
+            <p><strong>Authorization:</strong> Authorized account-এর UID অনুযায়ী <code>admins/{uid}</code> record রাখতে হবে।</p>
+            <button type="button" className="av-admin-action danger" onClick={() => void signOut(auth)}>Sign out</button>
           </div>
         </section>}
       </main>
