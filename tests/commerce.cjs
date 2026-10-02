@@ -9,6 +9,8 @@ const root = path.resolve(__dirname, "..");
 const records = new Map();
 let writes = 0, sends = 0, failDatabase = false, failNotification = false;
 let transactionQueue = Promise.resolve();
+let orderWriteQueue = Promise.resolve();
+const requestFingerprints = new Map();
 const snapshot = (ref) => ({ id: ref.id, exists: () => records.has(ref.path), data: () => records.get(ref.path) });
 const firebase = {
   doc: (_, collection, id) => ({ id, path: `${collection}/${id}` }),
@@ -29,6 +31,34 @@ const firebase = {
     return result;
   },
 };
+class FirestoreCreateError extends Error {
+  constructor(message, status, alreadyExists = false, conflict = false) {
+    super(message);
+    this.status = status;
+    this.alreadyExists = alreadyExists;
+    this.conflict = conflict;
+  }
+}
+const orderWriter = {
+  FirestoreCreateError,
+  createPublicOrderDocument: (orderId, data, fingerprint) => {
+    const result = orderWriteQueue.catch(() => {}).then(async () => {
+      if (failDatabase) throw new FirestoreCreateError("database unavailable", 503);
+      const requestId = orderId.replace(/^AVEN-/, "");
+      const existing = requestFingerprints.get(requestId);
+      if (existing) {
+        if (existing === fingerprint) return { duplicate: true };
+        throw new FirestoreCreateError("payload conflict", 409, true, true);
+      }
+      requestFingerprints.set(requestId, fingerprint);
+      records.set(`orders/${orderId}`, data);
+      writes++;
+      return { duplicate: false };
+    });
+    orderWriteQueue = result;
+    return result;
+  },
+};
 const cache = new Map();
 const capturedLogs = [];
 function load(relative) {
@@ -42,6 +72,7 @@ function load(relative) {
   const localRequire = (name) => {
     if (name === "firebase/firestore") return firebase;
     if (name === "@/lib/firebase") return { db: {} };
+    if (name === "@/lib/firestore-rest") return orderWriter;
     if (name === "next/server") return { NextResponse: { json: (data, options) => new Response(JSON.stringify(data), { ...options, headers: { "Content-Type": "application/json", ...options?.headers } }) } };
     if (name.startsWith("@/")) return load(`${name.slice(2)}.ts`);
     if (name.startsWith(".")) return load(path.relative(root, path.resolve(path.dirname(filename), `${name}.ts`)));
@@ -62,7 +93,7 @@ const customer = { name: "Test Buyer", phone: "01987744985", district: "Dhaka", 
 let n = 0, passed = 0;
 const request = (body, extra = {}) => new Request("https://example.test/api/checkout", { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": `test-${++n}`, ...extra }, body: typeof body === "string" ? body : JSON.stringify(body) });
 function fixture() {
-  records.clear(); writes = 0; sends = 0; failDatabase = false; failNotification = false;
+  records.clear(); requestFingerprints.clear(); writes = 0; sends = 0; failDatabase = false; failNotification = false; orderWriteQueue = Promise.resolve();
   records.set("products/shawl", { name: "Signature Shawl", price: 999.95, category: "Shawl", mainImage: "/products/pink.png", stock: 20, colors: [{ name: "Rose", image: "/products/pink.png", stock: 15 }, { name: "Blue", image: "/products/Blue.png", stock: 5 }] });
   records.set("products/jamdani", { name: "Jamdani", price: 1500, mainImage: "/products/Yellow.png", colors: [], available: true });
 }
