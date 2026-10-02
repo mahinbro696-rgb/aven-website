@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
-import { doc, collection, getDocFromServer, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, collection, deleteField, getDocFromServer, setDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import { SHOWROOM } from "@/lib/showroom";
 import { useCategoryOptions } from "@/components/admin/useCategoryOptions";
 
-type Variant = { key: string; name: string; url: string; file: File | null };
+type Variant = { key: string; name: string; url: string; file: File | null; stock: string };
 const initial = { name: SHOWROOM[0].name, category: "কুশিকাটা চাদর", price: "", oldPrice: "", description: "" };
 function codeOf(error: unknown): string { return error && typeof error === "object" && "code" in error ? String(error.code) : ""; }
 async function timeout<T>(promise: Promise<T>): Promise<T> {
@@ -22,7 +22,7 @@ export default function ProductManager() {
   const [imageUrl, setImageUrl] = useState(SHOWROOM[0].mainImage);
   const [mainFile, setMainFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
-  const [variants, setVariants] = useState<Variant[]>([{ key: "first", name: SHOWROOM[0].colors[0].name, url: SHOWROOM[0].mainImage, file: null }]);
+  const [variants, setVariants] = useState<Variant[]>([{ key: "first", name: SHOWROOM[0].colors[0].name, url: SHOWROOM[0].mainImage, file: null, stock: "" }]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
@@ -35,7 +35,7 @@ export default function ProductManager() {
     setSelectedId(id); stableId.current = id; setMessage(""); setSuccess(false); setMainFile(null);
     setForm({ name: seed?.name || "", category: seed ? "কুশিকাটা চাদর" : "কুশিকাটা চাদর", price: "", oldPrice: "", description: "" });
     setImageUrl(seed?.mainImage || "");
-    setVariants(seed ? seed.colors.map((c, i) => ({ key: `${i}`, name: c.name, url: c.image, file: null })) : []);
+    setVariants(seed ? seed.colors.map((c, i) => ({ key: `${i}`, name: c.name, url: c.image, file: null, stock: typeof c.stock === "number" ? String(c.stock) : "" })) : []);
   };
   const acceptFile = (file?: File): File | null => {
     if (!file) return null;
@@ -59,6 +59,7 @@ export default function ProductManager() {
     }
     if (!mainFile && !imageUrl) { setMessage("একটি পণ্যের ছবি নির্বাচন করুন।"); return; }
     if (variants.some((v) => !v.name.trim()) || new Set(variants.map((v) => v.name.trim())).size !== variants.length) { setMessage("প্রতিটি রঙের আলাদা নাম দিন।"); return; }
+    if (variants.some((v) => v.stock.trim() && (!Number.isInteger(Number(v.stock)) || Number(v.stock) < 0 || Number(v.stock) > 99999))) { setMessage("Stock দিলে ০ থেকে ৯৯,৯৯৯-এর মধ্যে পূর্ণ সংখ্যা দিন।"); return; }
     lock.current = true; setBusy(true);
     const id = selectedId || stableId.current || doc(collection(db, "products")).id;
     stableId.current = id;
@@ -67,11 +68,13 @@ export default function ProductManager() {
       const existing = await timeout(getDocFromServer(target));
       if (existing.exists() && !window.confirm("এই পণ্যটি আগে প্রকাশ করা হয়েছে। দেওয়া তথ্য ও দাম দিয়ে আপডেট করবেন?")) return;
       const mainImage = mainFile ? await upload(mainFile, id) : imageUrl;
-      const colors = await Promise.all(variants.map(async (v) => ({ name: v.name.trim(), image: v.file ? await upload(v.file, id) : v.url || mainImage })));
+      const colors = await Promise.all(variants.map(async (v) => ({ name: v.name.trim(), image: v.file ? await upload(v.file, id) : v.url || mainImage, ...(v.stock.trim() ? { stock: Number(v.stock), available: Number(v.stock) > 0 } : {}) })));
+      const tracked = variants.length > 0 && variants.every((v) => v.stock.trim());
+      const totalStock = tracked ? variants.reduce((sum, v) => sum + Number(v.stock), 0) : null;
       await timeout(setDoc(target, {
         name: form.name.trim(), category: form.category.trim(), price: Math.round(price * 100) / 100, oldPrice,
         discount: oldPrice > price ? Math.round((1 - price / oldPrice) * 100) : 0,
-        description: form.description.trim(), mainImage, colors, published: true, available: true,
+        description: form.description.trim(), mainImage, colors, stock: totalStock === null ? deleteField() : totalStock, published: true, available: totalStock === 0 ? false : true,
         ...(!existing.exists() ? { createdAt: serverTimestamp() } : {}), updatedAt: serverTimestamp(),
       }, { merge: true }));
       try { localStorage.setItem("aven:catalog-updated", String(Date.now())); } catch { /* optional tab refresh */ }
@@ -93,8 +96,8 @@ export default function ProductManager() {
       <label>ক্যাটাগরি<select required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{categoryOptions.map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
       <div className="av-admin-prices"><label>বিক্রয়মূল্য (টাকা)<input name="price" type="number" min="0.01" max="1000000" step="0.01" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="আসল বিক্রয়মূল্য" /></label><label>আগের মূল্য (ঐচ্ছিক)<input type="number" min="0" max="1000000" step="0.01" value={form.oldPrice} onChange={(e) => setForm({ ...form, oldPrice: e.target.value })} placeholder="ছাড় না থাকলে খালি রাখুন" /></label></div>
       <label>বিবরণ<textarea rows={4} maxLength={3000} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="কাপড়, মাপ ও সঠিক পণ্যের তথ্য" /></label>
-      <legend>৩. রঙ (প্রযোজ্য হলে)</legend>{variants.map((v) => <div className="av-admin-variant" key={v.key}><label>রঙের নাম<input value={v.name} maxLength={100} onChange={(e) => setVariants((all) => all.map((item) => item.key === v.key ? { ...item, name: e.target.value } : item))} required /></label><label>এই রঙের ছবি<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { const file = acceptFile(e.target.files?.[0]); if (file) setVariants((all) => all.map((item) => item.key === v.key ? { ...item, file } : item)); }} /></label><button type="button" className="av-admin-secondary" onClick={() => setVariants((all) => all.filter((item) => item.key !== v.key))}>রঙটি সরান</button></div>)}
-      <button type="button" className="av-admin-secondary" onClick={() => setVariants((all) => [...all, { key: crypto.randomUUID(), name: "", url: "", file: null }])}>+ আরেকটি রঙ</button>
+      <legend>৩. রঙ ও stock</legend>{variants.map((v) => <div className="av-admin-variant" key={v.key}><label>রঙের নাম<input value={v.name} maxLength={100} onChange={(e) => setVariants((all) => all.map((item) => item.key === v.key ? { ...item, name: e.target.value } : item))} required /></label><label>Stock (ঐচ্ছিক)<input type="number" min="0" max="99999" step="1" value={v.stock} placeholder="খালি = stock track নয়" onChange={(e) => setVariants((all) => all.map((item) => item.key === v.key ? { ...item, stock: e.target.value } : item))} /></label><label>এই রঙের ছবি<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { const file = acceptFile(e.target.files?.[0]); if (file) setVariants((all) => all.map((item) => item.key === v.key ? { ...item, file } : item)); }} /></label><button type="button" className="av-admin-secondary" onClick={() => setVariants((all) => all.filter((item) => item.key !== v.key))}>রঙটি সরান</button></div>)}
+      <button type="button" className="av-admin-secondary" onClick={() => setVariants((all) => [...all, { key: crypto.randomUUID(), name: "", url: "", file: null, stock: "" }])}>+ আরেকটি রঙ</button>
       <button type="submit" className="av-admin-publish">{busy ? "সংরক্ষণ হচ্ছে…" : "Publish Product / প্রকাশ করুন"}</button>
     </fieldset>
     {message && <div role={success ? "status" : "alert"} className={`av-admin-message ${success ? "is-success" : ""}`}><p>{message}</p>{success && <a href={`/product/${encodeURIComponent(stableId.current)}`} target="_blank" rel="noopener noreferrer">প্রকাশিত পণ্য দেখুন →</a>}</div>}
