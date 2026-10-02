@@ -11,6 +11,7 @@ import { Hero, Story, HowTo, Contact } from "./Sections";
 import { CommerceProvider, useCommerce } from "./CommerceState";
 import CommerceLayer from "./ShoppingBag";
 import { useCatalog } from "./useCatalog";
+import { useShopCategories } from "./useShopCategories";
 import StyleStudio, { StudioSection, type StudioRequest } from "./StyleStudio";
 import CategoryShowcase from "./CategoryShowcase";
 import { categoryKeyForProduct, categoryName, normalizeCategorySelection } from "@/lib/shop-categories";
@@ -21,6 +22,7 @@ export default function Storefront(props: { productId?: string }) {
 }
 function StorefrontView({ productId }: { productId?: string }) {
   const { products, status: catalogStatus, reload } = useCatalog();
+  const managedCategories = useShopCategories();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState("newest");
@@ -105,7 +107,7 @@ function StorefrontView({ productId }: { productId?: string }) {
       </div></div></header>
     <main id="main-content">{!productId ? <>
       <Hero onShop={browseCategories} />
-      <CategoryShowcase products={products} selected={category} onSelect={selectCategory} />
+      <CategoryShowcase products={products} selected={category} onSelect={selectCategory} managed={managedCategories} />
       <div className="av-ribbon"><span>ঐতিহ্যের ছোঁয়া</span><Icon name="spark" size={15} /><span>নিজস্বতার সৌন্দর্য</span><Icon name="spark" size={15} /><span>AVEN, EVERY DAY</span><Icon name="spark" size={15} /><span>আপনার পছন্দে, আপনার রঙে</span></div>
       <section className="av-shop av-section" id="shop"><div className="av-container">
         <div className="av-section-top"><div><p className="av-eyebrow">02 / SELECTED PRODUCTS</p><h2>{category ? <>{categoryName(category)} <em>কালেকশন।</em></> : <>সব প্রকাশিত <em>পণ্য।</em></>}</h2>{category && <div className="av-shop-category-title"><span>শুধু এই collection-এর products দেখানো হচ্ছে</span><button type="button" onClick={browse}>সব পণ্য দেখুন</button></div>}</div><p className="av-section-intro">পণ্য খুলে রঙ ও পরিমাণ বেছে নিন।<br />পছন্দ হলে ওয়েবসাইটেই অর্ডার করুন।</p></div>
