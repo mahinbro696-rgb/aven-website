@@ -7,10 +7,9 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import { categoryKeyForProduct, categoryName } from "@/lib/shop-categories";
 import type { Product } from "@/lib/atelier";
+import { useCategoryOptions } from "./useCategoryOptions";
 
 type Color = { name: string; image: string; file?: File | null };
-
-const presets = ["কুশিকাটা চাদর", "জামদানি চাদর", "প্রিমিয়াম শাল"];
 
 function asProduct(id: string, raw: Record<string, unknown>): Product {
   return {
@@ -37,6 +36,7 @@ async function upload(file: File, productId: string) {
 }
 
 export default function AdminProductEditor() {
+  const categoryOptions = useCategoryOptions();
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [search, setSearch] = useState("");
@@ -164,7 +164,7 @@ export default function AdminProductEditor() {
         <div className="av-admin-field-grid">
           <label><span>Product name</span><input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
           <label><span>Category</span><input list="aven-admin-categories" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} /></label>
-          <datalist id="aven-admin-categories">{presets.map((name) => <option key={name} value={name} />)}</datalist>
+          <datalist id="aven-admin-categories">{categoryOptions.map((name) => <option key={name} value={name} />)}</datalist>
           <label><span>Sale price</span><input type="number" min="1" step="0.01" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} /></label>
           <label><span>Previous price</span><input type="number" min="0" step="0.01" value={form.oldPrice} onChange={(event) => setForm({ ...form, oldPrice: event.target.value })} /></label>
         </div>
