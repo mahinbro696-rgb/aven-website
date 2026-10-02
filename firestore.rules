@@ -13,6 +13,12 @@ service cloud.firestore {
 
     function validOrderCreate() {
       return request.auth == null
+        && request.resource.data.keys().hasOnly([
+          "name", "phone", "district", "address", "note",
+          "items", "product", "productId", "color", "quantity",
+          "unitPrice", "subtotal", "deliveryCharge", "paymentStatus",
+          "status", "fingerprint", "checkoutQuote", "source", "createdAt"
+        ])
         && request.resource.data.status == "Pending"
         && request.resource.data.paymentStatus == "Not collected"
         && request.resource.data.name is string
@@ -32,7 +38,199 @@ service cloud.firestore {
         && request.resource.data.quantity <= 60
         && request.resource.data.subtotal is number
         && request.resource.data.subtotal > 0
+        && request.resource.data.deliveryCharge == null
+        && request.resource.data.fingerprint is string
+        && request.resource.data.fingerprint.matches('^[0-9a-fA-F]{64}
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow create: if orderId.matches('^AVEN-[0-9a-fA-F-]{36}
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+)
         && request.resource.data.source in ["aven-atelier", "aven-shopping-bag"];
+
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow create: if validOrderCreate();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /admins/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+) && validOrderCreate();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /order_requests/{requestId} {
+      allow create: if request.auth == null
+        && requestId.matches('^[0-9a-fA-F-]{36}
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+)
+        && request.resource.data.source in ["aven-atelier", "aven-shopping-bag"];
+
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow create: if validOrderCreate();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /admins/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+)
+        && request.resource.data.keys().hasOnly(["fingerprint", "orderId", "createdAt"])
+        && request.resource.data.fingerprint is string
+        && request.resource.data.fingerprint.matches('^[0-9a-fA-F]{64}
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+)
+        && request.resource.data.source in ["aven-atelier", "aven-shopping-bag"];
+
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow create: if validOrderCreate();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /admins/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+)
+        && request.resource.data.orderId == "AVEN-" + requestId;
+      allow get: if true;
+      allow list: if false;
+      allow update, delete: if isAdmin();
+    }
+
+    match /admins/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+)
+        && request.resource.data.source in ["aven-atelier", "aven-shopping-bag"];
+
     }
 
     match /products/{productId} {
