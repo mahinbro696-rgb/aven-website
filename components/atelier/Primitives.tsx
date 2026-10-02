@@ -64,8 +64,9 @@ export function Dialog({ children, title, onClose, wide = false, variant = "moda
     <div className="av-dialog-surface"><div className="av-dialog-head"><h2 id={titleId}>{title}</h2><button type="button" className="av-icon-btn" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="close" /></button></div>{children}</div>
   </dialog>, document.body);
 }
-export function Quantity({ value, onChange }: { value: number; onChange: (n: number) => void }) {
-  return <div className="av-quantity" aria-label="পরিমাণ"><button type="button" aria-label="পরিমাণ কমান" disabled={value <= 1} onClick={() => onChange(Math.max(1, value - 1))}><Icon name="minus" size={16} /></button><output aria-live="polite">{value}</output><button type="button" aria-label="পরিমাণ বাড়ান" disabled={value >= 20} onClick={() => onChange(Math.min(20, value + 1))}><Icon name="plus" size={16} /></button></div>;
+export function Quantity({ value, onChange, max = 20 }: { value: number; onChange: (n: number) => void; max?: number }) {
+  const limit = Math.max(1, Math.min(20, Math.floor(max)));
+  return <div className="av-quantity" aria-label="পরিমাণ"><button type="button" aria-label="পরিমাণ কমান" disabled={value <= 1} onClick={() => onChange(Math.max(1, value - 1))}><Icon name="minus" size={16} /></button><output aria-live="polite">{value}</output><button type="button" aria-label="পরিমাণ বাড়ান" disabled={value >= limit} onClick={() => onChange(Math.min(limit, value + 1))}><Icon name="plus" size={16} /></button></div>;
 }
 export function Empty({ title, text, children }: { title: string; text: string; children?: ReactNode }) {
   return <div className="av-empty"><Icon name="bag" size={32} /><h3>{title}</h3><p>{text}</p><div>{children}</div></div>;
