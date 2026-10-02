@@ -69,6 +69,10 @@ jobs:
         env:
           NODE_PATH: /tmp/aven-browser/node_modules
         run: node tests/style-studio.cjs
+      - name: Admin dashboard desktop and mobile browser checks
+        env:
+          NODE_PATH: /tmp/aven-browser/node_modules
+        run: node tests/admin-browser.cjs
       - name: Collect verification evidence
         if: always()
         run: |
