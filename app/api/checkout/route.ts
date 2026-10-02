@@ -47,10 +47,12 @@ export async function POST(request: Request) {
 
     let duplicate = false;
     try {
-      await createPublicOrderDocument(orderId, payload);
+      duplicate = (await createPublicOrderDocument(orderId, payload, fingerprint)).duplicate;
     } catch (error) {
-      if (error instanceof FirestoreCreateError && error.alreadyExists) duplicate = true;
-      else throw error;
+      if (error instanceof FirestoreCreateError && error.conflict) {
+        throw new CheckoutError("একই অর্ডার রেফারেন্সের তথ্য বদলেছে। Checkout বন্ধ করে আবার শুরু করুন।", 409, "REQUEST_CONFLICT");
+      }
+      throw error;
     }
 
     const notificationSent = duplicate ? false : await notifyOrder([
