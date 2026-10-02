@@ -63,13 +63,19 @@ export function categoryDefinition(key: string): ShopCategory {
   };
 }
 
-export function productCategories(products: Product[]): ShopCategory[] {
+export function productCategories(products: Product[], managed: ShopCategory[] = []): ShopCategory[] {
   const actualKeys = [...new Set(products.map(categoryKeyForProduct))];
+  const base = [...FEATURED_SHOP_CATEGORIES];
+  for (const item of managed) {
+    const index = base.findIndex((current) => current.key === item.key || current.name === item.name);
+    if (index >= 0) base[index] = { ...base[index], ...item };
+    else base.push(item);
+  }
   const custom = actualKeys
-    .filter((key) => !FEATURED_SHOP_CATEGORIES.some((item) => item.key === key))
+    .filter((key) => !base.some((item) => item.key === key || item.name === categoryName(key)))
     .map(categoryDefinition);
 
-  return [...FEATURED_SHOP_CATEGORIES, ...custom];
+  return [...base, ...custom];
 }
 
 export function productsInCategory(products: Product[], key: string): Product[] {
