@@ -302,7 +302,7 @@ export default function AdminDashboard() {
           <div className="av-admin-settings-note">
             <p><strong>Admin session:</strong> Firebase Authentication sign-in gate active। Database-side rules deploy করার পর authorization server-side enforce হবে।</p>
             <p><strong>Telegram:</strong> Bot token admin browser-এ দেখানো বা public Firestore document-এ রাখা উচিত নয়। Production-এ <code>TELEGRAM_BOT_TOKEN</code> এবং <code>TELEGRAM_CHAT_ID</code> server environment variables হিসেবে রাখা হবে।</p>
-            <p><strong>Authorization:</strong> Authorized account-এর UID অনুযায়ী <code>admins/{uid}</code> record রাখতে হবে।</p>
+            <p><strong>Authorization:</strong> Authorized account-এর UID অনুযায়ী <code>admins/{"{uid}"}</code> record রাখতে হবে।</p>
             <button type="button" className="av-admin-action danger" onClick={() => void signOut(auth)}>Sign out</button>
           </div>
         </section>}
