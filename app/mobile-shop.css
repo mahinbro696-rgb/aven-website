@@ -101,3 +101,7 @@
 }
 @media(max-width:359px){.av-container{width:calc(100% - 24px)}.av-logo{font-size:25px}.av-logo span{display:none}.av-header-inner{grid-template-columns:40px minmax(0,1fr) auto;gap:0}.av-card-info h3{font-size:18px}.av-purchase-actions .av-btn svg{width:16px}.av-product-card .av-purchase-actions .av-btn{font-size:12px!important}.av-checkout-progress button{font-size:10px}.av-dialog-checkout .av-dialog-surface,.av-dialog-drawer .av-dialog-surface{padding-inline:14px}}
 @media(prefers-reduced-motion:reduce){.av-product-card .av-purchase-actions .av-btn:active,.av-mobile-order .av-btn:active{transform:none}}
+
+.av-card-colors>button.is-unavailable,.av-gallery-thumbs>button.is-unavailable,.av-color-options>button.is-unavailable{opacity:.38;filter:grayscale(1);cursor:not-allowed;position:relative}
+.av-card-colors>button.is-unavailable::after{content:"";position:absolute;inset:50% 5px auto;border-top:1px solid currentColor;transform:rotate(-35deg)}
+.av-color-options>button.is-unavailable{text-decoration:line-through}
