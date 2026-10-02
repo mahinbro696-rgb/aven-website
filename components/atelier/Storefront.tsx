@@ -12,6 +12,8 @@ import { CommerceProvider, useCommerce } from "./CommerceState";
 import CommerceLayer from "./ShoppingBag";
 import { useCatalog } from "./useCatalog";
 import StyleStudio, { StudioSection, type StudioRequest } from "./StyleStudio";
+import CategoryShowcase from "./CategoryShowcase";
+import { categoryKeyForProduct, categoryName, normalizeCategorySelection } from "@/lib/shop-categories";
 
 type Overlay = { type: "menu" | "saved" | "search" } | { type: "quick"; product: Product } | { type: "image"; src: string; alt: string } | null;
 export default function Storefront(props: { productId?: string }) {
@@ -32,8 +34,8 @@ function StorefrontView({ productId }: { productId?: string }) {
   const importedEdit = useRef(false);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setQuery(params.get("q") || ""); setCategory(params.get("collection") || "");
-  }, []);
+    setQuery(params.get("q") || ""); setCategory(normalizeCategorySelection(params.get("collection") || "", products));
+  }, [products]);
   useEffect(() => {
     if (catalogStatus !== "ready" || importedEdit.current) return;
     importedEdit.current = true;
@@ -49,11 +51,28 @@ function StorefrontView({ productId }: { productId?: string }) {
   const order = (p: Product, color = "", quantity = 1) => { close(); closeStudio(); setToast(""); bag.buy(p, color, quantity); };
   const add = (p: Product, color = "", quantity = 1) => { close(); closeStudio(); setToast(""); return bag.add(p, color, quantity); };
   const showBag = () => { close(); closeStudio(); setToast(""); bag.openBag(); };
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+  };
   const browse = () => {
     setCategory(""); setQuery(""); setSavedOnly(false);
     if (productId) { window.location.assign("/#shop"); return; }
     window.history.replaceState(null, "", "/#shop");
-    document.getElementById("shop")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    scrollTo("shop");
+  };
+  const browseCategories = () => {
+    setQuery(""); setSavedOnly(false);
+    if (productId) { window.location.assign("/#collections"); return; }
+    window.history.replaceState(null, "", "/#collections");
+    scrollTo("collections");
+  };
+  const selectCategory = (key: string) => {
+    setCategory(key); setQuery(""); setSavedOnly(false);
+    const params = new URLSearchParams(window.location.search);
+    params.set("collection", key);
+    const queryString = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${queryString ? `?${queryString}` : ""}#shop`);
+    window.setTimeout(() => scrollTo("shop"), 20);
   };
   const toggleSave = (id: string) => {
     const removing = wishlist.ids.includes(id); wishlist.toggle(id);
@@ -63,21 +82,21 @@ function StorefrontView({ productId }: { productId?: string }) {
     try { await navigator.clipboard.writeText(CONTACT.display); setToast("নম্বর কপি হয়েছে"); }
     catch { setToast(`কপি করা যায়নি। নম্বরটি: ${CONTACT.display}`); }
   };
-  const categories = [...new Set(products.map((p) => p.category))];
-  const filtered = products.filter((p) => (!category || p.category === category) && (!savedOnly || wishlist.ids.includes(p.id)) &&
+  const categories = [...new Set(products.map(categoryKeyForProduct))];
+  const filtered = products.filter((p) => (!category || categoryKeyForProduct(p) === category) && (!savedOnly || wishlist.ids.includes(p.id)) &&
     `${p.name} ${p.category} ${p.description} ${p.colors.map((c) => c.name).join(" ")}`.toLocaleLowerCase("bn").includes(query.trim().toLocaleLowerCase("bn")))
     .sort((a, b) => sort === "price-asc" ? (a.price || Infinity) - (b.price || Infinity) : sort === "price-desc" ? b.price - a.price : sort === "name" ? a.name.localeCompare(b.name, "bn") : b.createdAt - a.createdAt);
   const product = products.find((p) => p.id === productId);
   const saved = products.filter((p) => wishlist.ids.includes(p.id));
   const grid = (items: Product[]) => <div className="av-product-grid">{items.map((p) => <div className="av-editorial-product" key={`${p.id}-${p.price}`}><ProductCard product={p} saved={wishlist.ids.includes(p.id)} onSave={() => toggleSave(p.id)} onQuick={() => setOverlay({ type: "quick", product: p })} onOrder={(color) => order(p, color)} onAdd={(color) => add(p, color)} /><button type="button" className="av-card-compare-link" onClick={() => openStudio({ mode: "compare", firstId: p.id })}>অন্য রঙের সঙ্গে তুলনা <Icon name="plus" size={15} /></button></div>)}</div>;
-  const menu = [["কালেকশন", "/#shop"], ["আমাদের গল্প", "/#story"], ["অর্ডারের নিয়ম", "/#how-to-order"], ["যোগাযোগ", "/#contact"]];
+  const menu = [["কালেকশন", "/#collections"], ["সব পণ্য", "/#shop"], ["আমাদের গল্প", "/#story"], ["অর্ডারের নিয়ম", "/#how-to-order"], ["যোগাযোগ", "/#contact"]];
 
   return <div className="av" data-catalog-state={catalogStatus}>
     <a className="av-skip" href="#main-content">মূল অংশে যান</a>
     <div className="av-announcement"><span>AVEN / THE EVERYDAY HEIRLOOM</span><a href={`tel:${CONTACT.international}`}>কথা বলুন <span>{CONTACT.display}</span><Icon name="arrow" size={14} /></a></div>
     <header className="av-header"><div className="av-header-inner av-container"><div className="av-nav-left">
       <button type="button" className="av-icon-btn av-mobile-menu" onClick={() => setOverlay({ type: "menu" })} aria-label="মেনু খুলুন"><Icon name="menu" /></button>
-      <nav aria-label="প্রধান মেনু" className="av-desktop-nav"><Link href="/#shop">কালেকশন</Link><button type="button" className="av-header-studio" onClick={() => openStudio({ mode: "build" })}>নিজের সেট</button><Link href="/#story">আমাদের গল্প</Link></nav>
+      <nav aria-label="প্রধান মেনু" className="av-desktop-nav"><Link href="/#collections">কালেকশন</Link><button type="button" className="av-header-studio" onClick={() => openStudio({ mode: "build" })}>নিজের সেট</button><Link href="/#story">আমাদের গল্প</Link></nav>
     </div><Link href="/" className="av-logo" aria-label="AVEN হোম">AVEN<span>THE ART OF EVERYDAY ELEGANCE</span></Link>
       <div className="av-header-actions"><Link href="/#contact" className="av-header-contact">যোগাযোগ</Link>
         <button type="button" className="av-icon-btn" onClick={() => setOverlay({ type: "search" })} aria-label="পণ্য খুঁজুন"><Icon name="search" /></button>
@@ -85,16 +104,17 @@ function StorefrontView({ productId }: { productId?: string }) {
         <button type="button" className="av-icon-btn av-bag-button" onClick={showBag} aria-label={`Shopping Bag খুলুন, ${bag.count}টি পণ্য`}><Icon name="bag" /><span key={bag.count} className="av-bag-count">{bag.count}</span></button>
       </div></div></header>
     <main id="main-content">{!productId ? <>
-      <Hero onShop={browse} />
+      <Hero onShop={browseCategories} />
+      <CategoryShowcase products={products} selected={category} onSelect={selectCategory} />
       <div className="av-ribbon"><span>ঐতিহ্যের ছোঁয়া</span><Icon name="spark" size={15} /><span>নিজস্বতার সৌন্দর্য</span><Icon name="spark" size={15} /><span>AVEN, EVERY DAY</span><Icon name="spark" size={15} /><span>আপনার পছন্দে, আপনার রঙে</span></div>
-      <section className="av-shop av-section" id="shop"><div className="av-container"><div id="collections" />
-        <div className="av-section-top"><div><p className="av-eyebrow">01 / FIND YOUR FAVOURITE</p><h2>পছন্দ হোক <em>নিজের মতো।</em></h2></div><p className="av-section-intro">ছবিতে চাপুন, বিস্তারিত দেখুন।<br />পছন্দ হলে এখানেই অর্ডার করুন।</p></div>
+      <section className="av-shop av-section" id="shop"><div className="av-container">
+        <div className="av-section-top"><div><p className="av-eyebrow">02 / SELECTED PRODUCTS</p><h2>{category ? <>{categoryName(category)} <em>কালেকশন।</em></> : <>সব প্রকাশিত <em>পণ্য।</em></>}</h2>{category && <div className="av-shop-category-title"><span>শুধু এই collection-এর products দেখানো হচ্ছে</span><button type="button" onClick={browse}>সব পণ্য দেখুন</button></div>}</div><p className="av-section-intro">পণ্য খুলে রঙ ও পরিমাণ বেছে নিন।<br />পছন্দ হলে ওয়েবসাইটেই অর্ডার করুন।</p></div>
         <div className="av-shop-extras"><button type="button" onClick={() => openStudio({ mode: "compare" })}><Icon name="plus" size={17} />দুই রঙ মিলিয়ে দেখুন</button><button type="button" onClick={() => openStudio({ mode: "build" })}><Icon name="spark" size={17} />নিজের সেট সাজান</button></div>
         {catalogStatus !== "ready" && <div className="av-catalog-notice" role="status"><Icon name="bag" size={20} /><p>{catalogStatus === "checking" ? "বর্তমান দাম ও স্টক যাচাই হচ্ছে।" : catalogStatus === "empty" ? "এই মুহূর্তে প্রকাশিত পণ্য পাওয়া যায়নি। বর্তমান কালেকশন জানতে আমাদের সঙ্গে যোগাযোগ করুন।" : "বর্তমান দাম যাচাই করা যাচ্ছে না। আবার যাচাই করুন অথবা আমাদের সঙ্গে যোগাযোগ করুন।"}</p>{catalogStatus !== "checking" && <button type="button" onClick={reload}>আবার যাচাই</button>}</div>}
         <div className="av-shop-tools"><label className="av-search-field"><Icon name="search" /><span className="av-sr-only">নাম বা রঙ দিয়ে পণ্য খুঁজুন</span><input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="নাম বা রঙ দিয়ে খুঁজুন…" type="search" /></label>
           <label className="av-sort"><span>সাজান</span><select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="পণ্য সাজান"><option value="newest">নতুন আগে</option><option value="price-asc">কম দাম আগে</option><option value="price-desc">বেশি দাম আগে</option><option value="name">নাম অনুযায়ী</option></select></label>
         </div><div className="av-filter-row"><div className="av-filters" aria-label="কালেকশন ফিল্টার"><button type="button" aria-pressed={!category && !savedOnly} className={!category && !savedOnly ? "is-active" : ""} onClick={() => { setCategory(""); setSavedOnly(false); }}>সব পণ্য</button>
-          {categories.map((name) => <button type="button" key={name} aria-pressed={category === name && !savedOnly} className={category === name && !savedOnly ? "is-active" : ""} onClick={() => { setCategory(name); setSavedOnly(false); }}>{name}</button>)}
+          {categories.map((name) => <button type="button" key={name} aria-pressed={category === name && !savedOnly} className={category === name && !savedOnly ? "is-active" : ""} onClick={() => selectCategory(name)}>{categoryName(name)}</button>)}
           <button type="button" aria-pressed={savedOnly} className={savedOnly ? "is-active" : ""} onClick={() => { setSavedOnly(!savedOnly); setCategory(""); }}><Icon name="heart" size={14} />পছন্দের তালিকা</button>
         </div><span className="av-results" aria-live="polite">{new Intl.NumberFormat("bn-BD").format(filtered.length)}টি পছন্দ</span></div>
         {filtered.length ? grid(filtered) : <Empty title="মিলে যায় এমন পছন্দ নেই" text="অন্য নাম বা রঙ দিয়ে খুঁজুন, অথবা সব ডিজাইন দেখুন।"><button type="button" className="av-btn av-btn-dark" onClick={browse}>সব ডিজাইন দেখুন</button></Empty>}
@@ -106,8 +126,8 @@ function StorefrontView({ productId }: { productId?: string }) {
       {product && products.length > 1 && <section className="av-related"><p className="av-eyebrow">YOU MAY ALSO LIKE</p><h2>আরও কিছু <em>পছন্দ।</em></h2>{grid(products.filter((p) => p.id !== product.id).slice(0, 3))}</section>}
     </div>}
     <Contact onCopy={() => void copyNumber()} /></main>
-    <footer className="av-footer"><div className="av-container"><div className="av-footer-top"><Link href="/" className="av-footer-logo" aria-label="AVEN হোম">AVEN</Link><p>ঐতিহ্যে অনুপ্রাণিত।<br />আপনার নিজস্বতায় পরিপূর্ণ।</p><nav aria-label="ফুটার মেনু"><Link href="/#shop">কালেকশন</Link><Link href="/#style-studio">নিজের সেট</Link><Link href="/#contact">যোগাযোগ</Link></nav></div><div className="av-footer-bottom"><span>© 2026 AVEN. সর্বস্বত্ব সংরক্ষিত।</span><span>TRADITION, REIMAGINED.</span></div></div></footer>
-    {!productId && <nav className="av-mobile-dock" aria-label="মোবাইল কেনাকাটা"><button type="button" onClick={browse}><Icon name="search" />কালেকশন</button><button type="button" onClick={() => openStudio({ mode: "compare" })}><Icon name="plus" />রঙ তুলনা</button><button type="button" onClick={() => openStudio({ mode: "build" })}><Icon name="spark" />নিজের সেট</button><button type="button" onClick={showBag}><Icon name="bag" />ব্যাগ ({bag.count})</button></nav>}
+    <footer className="av-footer"><div className="av-container"><div className="av-footer-top"><Link href="/" className="av-footer-logo" aria-label="AVEN হোম">AVEN</Link><p>ঐতিহ্যে অনুপ্রাণিত।<br />আপনার নিজস্বতায় পরিপূর্ণ।</p><nav aria-label="ফুটার মেনু"><Link href="/#collections">কালেকশন</Link><Link href="/#style-studio">নিজের সেট</Link><Link href="/#contact">যোগাযোগ</Link></nav></div><div className="av-footer-bottom"><span>© 2026 AVEN. সর্বস্বত্ব সংরক্ষিত।</span><span>TRADITION, REIMAGINED.</span></div></div></footer>
+    {!productId && <nav className="av-mobile-dock" aria-label="মোবাইল কেনাকাটা"><button type="button" onClick={browseCategories}><Icon name="search" />কালেকশন</button><button type="button" onClick={() => openStudio({ mode: "compare" })}><Icon name="plus" />রঙ তুলনা</button><button type="button" onClick={() => openStudio({ mode: "build" })}><Icon name="spark" />নিজের সেট</button><button type="button" onClick={showBag}><Icon name="bag" />ব্যাগ ({bag.count})</button></nav>}
     <a className={`av-floating-chat ${productId && product ? "av-floating-chat-detail" : ""}`} href={whatsappLink()} target="_blank" rel="noopener noreferrer" aria-label="AVEN-এর সঙ্গে WhatsApp-এ কথা বলুন"><Icon name="chat" size={24} /><span>কথা বলুন</span></a>
     <div className={`av-toast ${toast ? "is-visible" : ""}`} role="status" aria-live="polite">{toast && <><Icon name="check" size={18} />{toast}</>}</div>
     {overlay?.type === "menu" && <Dialog title="AVEN / মেনু" onClose={close}><nav className="av-menu-links">{menu.map(([label, href]) => <Link key={href} href={href} onClick={close}>{label}<Icon name="arrow" /></Link>)}<button type="button" className="av-btn av-style-outline" onClick={() => openStudio({ mode: "build" })}>নিজের সেট বানান <Icon name="spark" /></button><button type="button" className="av-btn av-btn-dark" onClick={showBag}>Shopping Bag ({bag.count}) <Icon name="bag" /></button><a href={whatsappLink()} target="_blank" rel="noopener noreferrer">WhatsApp<Icon name="chat" /></a><a href={`tel:${CONTACT.international}`}>{CONTACT.display}<Icon name="phone" /></a></nav></Dialog>}
