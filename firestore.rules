@@ -1,0 +1,140 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active == true;
+    }
+
+    function validOrderCreate() {
+      let data = request.resource.data;
+
+      return request.auth == null
+        && data.keys().hasAll([
+          "name",
+          "phone",
+          "district",
+          "address",
+          "product",
+          "color",
+          "quantity",
+          "subtotal",
+          "deliveryCharge",
+          "paymentStatus",
+          "status",
+          "fingerprint",
+          "source",
+          "createdAt"
+        ])
+        && data.keys().hasOnly([
+          "name",
+          "phone",
+          "district",
+          "address",
+          "note",
+          "items",
+          "product",
+          "productId",
+          "color",
+          "quantity",
+          "unitPrice",
+          "subtotal",
+          "deliveryCharge",
+          "paymentStatus",
+          "status",
+          "fingerprint",
+          "checkoutQuote",
+          "source",
+          "createdAt"
+        ])
+        && data.status == "Pending"
+        && data.paymentStatus == "Not collected"
+        && data.name is string
+        && data.name.size() >= 2
+        && data.name.size() <= 100
+        && data.phone is string
+        && data.phone.matches('^01[3-9][0-9]{8}$')
+        && data.district is string
+        && data.district.size() >= 2
+        && data.district.size() <= 80
+        && data.address is string
+        && data.address.size() >= 10
+        && data.address.size() <= 500
+        && data.product is string
+        && data.product.size() >= 1
+        && data.product.size() <= 1000
+        && data.color is string
+        && data.color.size() <= 500
+        && data.quantity is int
+        && data.quantity >= 1
+        && data.quantity <= 60
+        && data.subtotal is number
+        && data.subtotal > 0
+        && data.deliveryCharge == null
+        && data.fingerprint is string
+        && data.fingerprint.matches('^[0-9a-fA-F]{64}$')
+        && data.source in ["aven-atelier", "aven-shopping-bag"]
+        && data.createdAt is timestamp;
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow create: if orderId.matches('^AVEN-[0-9a-fA-F-]{36}$')
+        && validOrderCreate();
+
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /order_requests/{requestId} {
+      allow create: if request.auth == null
+        && requestId.matches('^[0-9a-fA-F-]{36}$')
+        && request.resource.data.keys().hasAll([
+          "fingerprint",
+          "orderId",
+          "createdAt"
+        ])
+        && request.resource.data.keys().hasOnly([
+          "fingerprint",
+          "orderId",
+          "createdAt"
+        ])
+        && request.resource.data.fingerprint is string
+        && request.resource.data.fingerprint.matches('^[0-9a-fA-F]{64}$')
+        && request.resource.data.orderId == "AVEN-" + requestId
+        && request.resource.data.createdAt is timestamp;
+
+      allow get: if true;
+      allow list: if false;
+      allow update, delete: if isAdmin();
+    }
+
+    match /admins/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

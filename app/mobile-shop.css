@@ -1,0 +1,107 @@
+/* Mobile shopping polish. No price, delivery or payment claims live in CSS. */
+.av-product-card .av-card-bottom strong{font-variant-numeric:tabular-nums;font-weight:600;letter-spacing:-.02em}
+.av-product-card .av-card-bottom del{color:#7b8072;text-decoration-thickness:1px;text-underline-offset:3px}
+.av-product-card .av-purchase-actions .av-btn{border-radius:12px;min-height:54px;box-shadow:0 3px 12px #20352608}
+.av-product-card .av-purchase-actions .av-btn:active,.av-mobile-order .av-btn:active{transform:scale(.975)}
+.av-dialog-checkout .av-dialog-head{align-items:center}
+.av-dialog-checkout .av-dialog-head .av-icon-btn{width:44px;height:44px}
+.av-premium-form .av-input{border-radius:12px;caret-color:#294734}
+.av-premium-form .av-input:focus-visible{outline:2px solid #7d9665;outline-offset:2px}
+.av-premium-form>.av-btn,.av-place-order{border-radius:12px;font-size:14px!important}
+.av-checkout-summary{background:linear-gradient(155deg,#edf1e5,#e4ebda);border-radius:18px}
+.av-address-review,.av-payment-explanation{border-radius:14px}
+.av-checkout-error{scroll-margin-top:110px}
+.av-order-total-preview{display:none}
+.av-review-total{padding:18px 0;border-bottom:1px solid #d6dfc8;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:13px}
+.av-review-total strong{font-size:25px;font-weight:600;font-variant-numeric:tabular-nums}
+.av-review-total small{display:block;font-size:10px;color:#68765a;margin-top:4px}
+.av-checkout-saving{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;color:#47603a;font-size:12px;border-bottom:1px dashed #bfcdae}
+.av-website-order-note{display:flex;align-items:flex-start;gap:9px;padding:12px 14px;background:#eef3e7;border:1px solid #d4e0c6;border-radius:10px;margin-bottom:20px!important;font-size:12px;color:#435c32;line-height:1.9}
+.av-website-order-note svg{flex-shrink:0;margin-top:4px}
+.av-receipt-contact{margin-top:15px!important;font-size:12px;color:#627651}
+.av-receipt-contact a{border-bottom:1px solid currentColor}
+@media(max-width:680px){
+ .av-container{width:calc(100% - 32px)}
+ .av-dialog.av-dialog-checkout,.av-dialog.av-dialog-drawer{inset:0;margin:0;width:100%;max-width:100%;height:100dvh;max-height:100dvh;overflow-y:auto;overscroll-behavior:contain;padding:0}
+ .av-dialog-checkout .av-dialog-surface,.av-dialog-drawer .av-dialog-surface{min-height:100%;padding:0 18px max(24px,env(safe-area-inset-bottom));border-radius:0}
+ .av-dialog-checkout .av-dialog-head,.av-dialog-drawer .av-dialog-head{position:sticky;top:0;z-index:5;background:#faf8f2;padding-top:max(12px,env(safe-area-inset-top));padding-bottom:12px;margin-bottom:20px;gap:12px}
+ .av-dialog-checkout .av-dialog-head>h2,.av-dialog-drawer .av-dialog-head>h2{font-size:14px;line-height:1.5}
+ .av-dialog .av-input,.av-dialog select,.av-dialog textarea{font-size:16px!important;max-width:100%}
+ .av-checkout-main>h3{font-size:27px;line-height:1.6}
+ .av-checkout-progress{margin-bottom:24px;gap:8px}
+ .av-checkout-progress button{font-size:11px;padding:0!important;min-height:44px;white-space:normal;line-height:1.5}
+ .av-checkout-progress button span{width:28px;height:28px}
+ .av-checkout-progress:before{top:21px}
+ .av-premium-form label{font-size:13px}
+ .av-premium-form .av-input{min-height:54px;padding:14px;font-size:16px!important}
+ .av-premium-form .av-form-grid{grid-template-columns:1fr}
+ .av-order-note summary{min-height:44px;font-size:12px}
+ .av-premium-form>.av-btn,.av-place-order{min-height:58px;box-shadow:0 6px 22px #273d2919}
+ .av-review-step .av-consent{font-size:12px;padding:13px 0;min-height:48px;align-items:flex-start}
+ .av-review-step .av-consent input{width:21px;height:21px;flex-shrink:0}
+ .av-address-review button,.av-receipt-ticket>button{min-height:44px;font-size:12px}
+ .av-order-total-preview{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:22px;padding:14px 16px;border:1px solid #d3dec6;border-radius:14px;background:#edf1e5}
+ .av-order-total-preview>div{min-width:0}
+ .av-order-total-preview span{display:block;font-size:11px;color:#657452}
+ .av-order-total-preview strong{display:block;font-size:23px;line-height:1.5;color:#2c4326;font-weight:600}
+ .av-order-total-preview button{font-size:12px;color:#3d5d2d;background:#fbfcf5;border:1px solid #c5d2b6;border-radius:9px;padding:10px 12px;min-height:44px}
+ .av-checkout-summary{padding:20px;border-radius:16px}
+ .av-summary-items{max-height:none}
+ .av-summary-item strong{font-size:13px}
+ .av-summary-totals>p{font-size:12px}
+ .av-summary-footnote{font-size:11px}
+ .av-bag-line{grid-template-columns:76px minmax(0,1fr);gap:12px;padding-block:20px}
+ .av-bag-photo{height:108px;border-radius:12px}
+ .av-bag-line h3{font-size:14px;line-height:1.7}
+ .av-bag-line .av-quantity{height:44px}
+ .av-bag-line .av-quantity button{width:38px;height:44px}
+ .av-bag-color select{min-height:44px;font-size:16px!important;max-width:165px}
+ .av-bag-line-bottom{flex-wrap:wrap;gap:10px}
+ .av-bag-remove{width:44px;height:44px;right:-8px}
+ .av-bag-footer .av-btn{min-height:58px;border-radius:12px}
+ .av-bag-undo button{min-height:44px}
+ .av-checkout-experience{padding-bottom:env(safe-area-inset-bottom,0px)}
+}
+@media(max-width:600px){
+ .av-header-inner{grid-template-columns:44px minmax(0,1fr) auto;gap:4px;height:76px}
+ .av-header-actions{margin-right:0}
+ .av-header-actions .av-icon-btn{width:44px;min-width:44px;height:44px}
+ .av-header-actions .av-icon-btn svg{width:20px;height:20px}
+ .av-logo{font-size:29px;letter-spacing:.11em;min-width:0}
+ .av-logo span{font-size:5px;letter-spacing:.03em}
+ .av-mobile-menu{margin-left:-6px;width:44px;height:44px}
+ .av-shop{padding-top:44px}
+ .av-shop .av-section-top{margin-bottom:25px}
+ .av-shop .av-section-top h2{font-size:30px}
+ .av-card-image{aspect-ratio:1.04;border-radius:16px 16px 3px 3px}
+ .av-product-card{padding-bottom:26px;border-bottom:1px solid #d4dbcb}
+ .av-card-info h3{font-size:20px;line-height:1.7}
+ .av-card-bottom strong{font-size:25px!important}
+ .av-card-bottom del{font-size:14px}
+ .av-product-card .av-purchase-actions{gap:10px;margin-top:15px}
+ .av-product-card .av-purchase-actions .av-btn{font-size:13px!important;min-height:55px;padding:12px 9px}
+ .av-quick-view{min-height:44px;opacity:1;transform:none}
+ .av-card-heart{min-height:44px;min-width:44px}
+ .av-card-colors>button{height:44px;width:44px}
+ .av-search-field input{min-height:48px;font-size:16px}
+ .av-sort select{min-height:44px;font-size:16px}
+ .av-filters button{min-height:44px;font-size:11px}
+ .av-detail-main-image{max-height:480px;aspect-ratio:1.02}
+ .av-detail-title{font-size:28px;line-height:1.65}
+ .av-detail-gallery{min-width:0}
+ .av-detail-price strong{font-size:31px}
+ .av-detail-quantity .av-quantity button{height:46px;min-width:46px}
+ .av-mobile-order{padding:11px 14px max(11px,env(safe-area-inset-bottom));gap:8px}
+ .av-mobile-order>div{flex:1;min-width:0}
+ .av-mobile-order>div strong{font-size:19px!important;white-space:nowrap}
+ .av-mobile-order>.av-btn{min-height:50px;border-radius:10px;font-size:12px!important;padding-inline:14px}
+ .av-mobile-order>.av-add-to-bag{width:52px;min-width:52px;padding:0}
+ .av-floating-chat{display:none}
+ .av-commerce-notice,.av-toast{pointer-events:none;bottom:105px}
+}
+@media(max-width:359px){.av-container{width:calc(100% - 24px)}.av-logo{font-size:25px}.av-logo span{display:none}.av-header-inner{grid-template-columns:40px minmax(0,1fr) auto;gap:0}.av-card-info h3{font-size:18px}.av-purchase-actions .av-btn svg{width:16px}.av-product-card .av-purchase-actions .av-btn{font-size:12px!important}.av-checkout-progress button{font-size:10px}.av-dialog-checkout .av-dialog-surface,.av-dialog-drawer .av-dialog-surface{padding-inline:14px}}
+@media(prefers-reduced-motion:reduce){.av-product-card .av-purchase-actions .av-btn:active,.av-mobile-order .av-btn:active{transform:none}}
+
+.av-card-colors>button.is-unavailable,.av-gallery-thumbs>button.is-unavailable,.av-color-options>button.is-unavailable{opacity:.38;filter:grayscale(1);cursor:not-allowed;position:relative}
+.av-card-colors>button.is-unavailable::after{content:"";position:absolute;inset:50% 5px auto;border-top:1px solid currentColor;transform:rotate(-35deg)}
+.av-color-options>button.is-unavailable{text-decoration:line-through}
