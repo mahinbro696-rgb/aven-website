@@ -60,6 +60,7 @@ export function maskEmail(value: string): string {
 
 export function maskPhone(value: string): string {
   const digits = value.replace(/\D/g, "");
+  if (!digits) return "—";
   if (digits.length < 7) return "*".repeat(Math.max(6, digits.length));
   const prefix = digits.slice(0, Math.min(3, digits.length - 4));
   const suffix = digits.slice(-3);
