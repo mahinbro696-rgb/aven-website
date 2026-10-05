@@ -45,3 +45,38 @@ export function stockLabel(product: Product): string {
   if (total <= LOW_STOCK_THRESHOLD) return `Low stock · ${total}`;
   return `Stock · ${total}`;
 }
+
+
+export function maskEmail(value: string): string {
+  const email = value.trim();
+  const at = email.indexOf("@");
+  if (at <= 0) return maskPersonalText(email);
+  const local = Array.from(email.slice(0, at));
+  const domain = email.slice(at + 1);
+  const visible = local.slice(0, Math.min(2, local.length)).join("");
+  const hidden = "*".repeat(Math.max(4, local.length - visible.length));
+  return visible + hidden + "@" + domain;
+}
+
+export function maskPhone(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length < 7) return "*".repeat(Math.max(6, digits.length));
+  const prefix = digits.slice(0, Math.min(3, digits.length - 4));
+  const suffix = digits.slice(-3);
+  return prefix + "*".repeat(Math.max(5, digits.length - prefix.length - suffix.length)) + suffix;
+}
+
+export function maskPersonalText(value: string): string {
+  const text = value.trim();
+  if (!text) return "—";
+  return text.split(/\s+/).map((word) => {
+    const chars = Array.from(word);
+    if (chars.length <= 1) return "*";
+    if (chars.length === 2) return chars[0] + "*";
+    return chars[0] + "*".repeat(Math.min(8, chars.length - 1));
+  }).join(" ");
+}
+
+export function privateAddressPlaceholder(value: string): string {
+  return value.trim() ? "•••••••• •••••••• ••••••••" : "—";
+}
