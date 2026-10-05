@@ -81,7 +81,7 @@ export default function AdminAuthGate({ children }: { children: ReactNode }) {
     return <main className="av-admin-login av-admin-login-split">
       <aside className="av-admin-login-story">
         <Link href="/" className="av-admin-login-wordmark">AVEN<span>THE STORE WORKSPACE</span></Link>
-        <div className="av-admin-login-editorial"><p>A LITTLE MORE EFFORTLESS.</p><h2>Behind every<br />beautiful<br /><em>collection.</em></h2><span>আপনার স্টোর পরিচালনার প্রতিটি কাজ,<br />একটি সুন্দর ও সহজ জায়গায়।</span></div>
+        <div className="av-admin-login-editorial"><p>A LITTLE MORE EFFORTLESS.</p><h2>Behind every<br /> beautiful<br /> <em>collection.</em></h2><span>আপনার স্টোর পরিচালনার প্রতিটি কাজ,<br />একটি সুন্দর ও সহজ জায়গায়।</span></div>
         <div className="av-admin-login-story-foot"><AdminIcon name="shield" /><span>Private access. Complete control.</span></div>
       </aside>
       <section className="av-admin-login-card">
