@@ -12,6 +12,7 @@ import { useCategoryOptions } from "./useCategoryOptions";
 type Color = { name: string; image: string; stock: string };
 
 function asProduct(id: string, raw: Record<string, unknown>): Product {
+  const createdAt = raw.createdAt as { seconds?: number } | undefined;
   return {
     id,
     name: String(raw.name || "AVEN Product"),
@@ -30,7 +31,7 @@ function asProduct(id: string, raw: Record<string, unknown>): Product {
       : [],
     available: raw.available !== false,
     stock: typeof raw.stock === "number" ? raw.stock : undefined,
-    createdAt: typeof raw.createdAt?.seconds === "number" ? raw.createdAt.seconds * 1000 : 0,
+    createdAt: typeof createdAt?.seconds === "number" ? createdAt.seconds * 1000 : 0,
   };
 }
 
