@@ -46,3 +46,8 @@ assert.equal(admin.productStockState(product(undefined, [{ stock: 2 }, { stock: 
 assert.equal(admin.productStockState(product(undefined, [{ stock: 2 }, {}])), 'untracked');
 
 console.log('PASS admin order workflow and inventory utilities');
+
+assert.match(admin.maskEmail('khalifababul16@gmail.com'), /^kh\*+@gmail\.com$/);
+assert.equal(admin.maskPhone('01987744985'), '019*****985');
+assert.ok(admin.maskPersonalText('Customer Name').includes('*'));
+assert.equal(admin.privateAddressPlaceholder('House 1, Dhaka'), '•••••••• •••••••• ••••••••');
