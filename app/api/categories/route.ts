@@ -16,6 +16,13 @@ function stringField(fields: Record<string, Value>, key: string, fallback = "") 
   return typeof fields[key]?.stringValue === "string" ? fields[key].stringValue! : fallback;
 }
 
+function numberField(fields: Record<string, Value>, key: string, fallback = 0) {
+  const value = fields[key];
+  if (typeof value?.integerValue === "string") return Number(value.integerValue);
+  if (typeof value?.doubleValue === "number") return value.doubleValue;
+  return fallback;
+}
+
 export async function GET() {
   const headers = { "Cache-Control": "no-store" };
   try {
@@ -43,9 +50,12 @@ export async function GET() {
           name,
           eyebrow: stringField(fields, "eyebrow", "AVEN COLLECTION"),
           description: stringField(fields, "description", name + " category-র প্রকাশিত পণ্যগুলো এখানে সাজানো থাকবে।"),
+          position: numberField(fields, "position", 9999),
         };
       })
-      .filter((item) => item.name);
+      .filter((item) => item.name)
+      .sort((a, b) => a.position - b.position)
+      .map(({ position: _position, ...item }) => item);
 
     return NextResponse.json({ success: true, categories: custom }, { headers });
   } catch {
