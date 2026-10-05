@@ -80,3 +80,101 @@
 @media(max-width:760px){.av-admin-backdrop{display:block;position:fixed;z-index:70;inset:0;border:0;background:#0b15118a;backdrop-filter:blur(2px)}.av-admin-side{z-index:80}.av-admin-side-close{display:inline-flex;position:absolute;right:12px;top:12px;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid #ffffff1c;border-radius:50%;background:#ffffff0b;color:#fff;font-size:21px}.av-admin-systembar{gap:9px;margin-top:-4px}.av-admin-systembar span{font-size:8px}.av-admin-structure-grid{grid-template-columns:1fr}.av-admin-category-section-title{align-items:flex-start;flex-direction:column;gap:4px}.av-admin-category-section-title>span{text-align:left}.av-admin-custom-category-actions .av-admin-action{flex:1}.av-admin-product-badges{justify-content:flex-start}.av-admin-overview-strip .av-admin-action{flex:1}}
 @media(max-width:520px){.av-admin-metrics{grid-template-columns:1fr 1fr}.av-admin-overview-strip{padding:14px}.av-admin-overview-strip strong{font-size:24px}.av-admin-order-actions .av-admin-action{flex:1;min-width:120px}}
 @media(max-width:390px){.av-admin-metrics{grid-template-columns:1fr}.av-admin-systembar{display:grid;grid-template-columns:1fr}}
+
+
+/* Readability, privacy and simplified category management */
+.av-admin{font-size:15px;font-weight:500}
+.av-admin button,.av-admin input,.av-admin textarea,.av-admin select{font-weight:600}
+.av-admin-topbar p{font-size:15px;line-height:1.7;font-weight:500}
+.av-admin-kicker{font-size:12px;font-weight:800}
+.av-admin-preview,.av-admin-action{font-size:13px;font-weight:700}
+.av-admin-action{min-height:44px;padding-inline:15px}
+.av-admin-nav button{font-size:15px;font-weight:700}
+.av-admin-brand span{font-size:10px;font-weight:700}
+.av-admin-side-foot{font-size:12px}
+.av-admin-side-foot strong{font-size:12px}
+.av-admin-side-foot span{font-size:11px}
+.av-admin-user-pill{font-size:11px;font-weight:700;min-height:42px}
+.av-admin-systembar{font-size:11px;font-weight:700;line-height:1.6}
+.av-admin-notice,.av-admin-security{font-size:12px;font-weight:600}
+.av-admin-metric span{font-size:12px;font-weight:700}
+.av-admin-panel h2{font-size:22px;font-weight:800}
+.av-admin-panel-head p{font-size:13px;line-height:1.6}
+.av-admin-list-row strong{font-size:15px;font-weight:750}
+.av-admin-list-row span{font-size:12px;line-height:1.6}
+.av-admin-status{font-size:11px;font-weight:800}
+.av-admin-order h3{font-size:18px;font-weight:800}
+.av-admin-order p{font-size:12px}
+.av-admin-order-details div span{font-size:11px;font-weight:800;letter-spacing:.07em}
+.av-admin-order-details div strong{font-size:13px;font-weight:700;line-height:1.8}
+.av-admin-order-note span{font-size:10px;font-weight:800}
+.av-admin-order-note p{font-size:12px!important}
+.av-admin-editor-products strong{font-size:13px;font-weight:800}
+.av-admin-editor-products small{font-size:11px}
+.av-admin-stock-text,.av-admin-stock-badge{font-size:10px}
+.av-admin-field span,.av-admin-field-grid label span{font-size:12px;font-weight:800}
+.av-admin-field input,.av-admin-field textarea,.av-admin-field-grid input,.av-admin-variant-row input,.av-admin-select,.av-admin-input{font-size:14px}
+.av-admin-field small,.av-admin-visibility small{font-size:11px}
+.av-admin-visibility strong{font-size:13px}
+.av-admin-editor-note strong{font-size:12px}.av-admin-editor-note span{font-size:11px}
+.av-admin-image-help{font-size:11px}.av-admin-image-help strong{font-size:12px}
+.av-admin-product>p{font-size:13px;line-height:1.7}.av-admin-product legend{font-size:16px;font-weight:800}
+.av-admin-product label{font-size:12px;font-weight:800}
+.av-admin-secondary{font-size:12px!important;font-weight:700!important}
+.av-admin-seeds span{font-size:12px;font-weight:700}
+.av-admin-message{font-size:12px}
+.av-admin-login-kicker{font-size:11px}.av-admin-login-form label{font-size:12px}.av-admin-login-card small{font-size:11px}.av-admin-login-message{font-size:12px}.av-admin-login-form button,.av-admin-login-secondary{font-size:13px}
+.av-admin-settings-grid span{font-size:10px;font-weight:800}.av-admin-settings-grid strong{font-size:15px}.av-admin-settings-grid p{font-size:12px}
+.av-admin-overview-strip span{font-size:10px;font-weight:800}.av-admin-overview-strip small{font-size:10px}
+.av-admin-structure-item>span{font-size:10px;font-weight:800}.av-admin-structure-item strong{font-size:15px}.av-admin-structure-item small{font-size:11px}
+.av-admin-category-section-title h3{font-size:19px;font-weight:800}.av-admin-category-section-title>span{font-size:11px}
+.av-admin-category-description{font-size:12px}.av-admin-category-lock{font-size:10px;font-weight:800}
+.av-admin-category-create p{font-size:12px}.av-admin-category-create label{font-size:12px}.av-admin-category-create input,.av-admin-category-create textarea{font-size:14px}
+.av-admin-privacy-toggle{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 13px;border-radius:999px;border:1px solid #b8c7b8;background:#eaf3e8;color:#3c6241;font-size:11px;font-weight:800}
+.av-admin-privacy-toggle.is-visible{background:#fff0d4;border-color:#dbc38e;color:#76561c}
+.av-admin-action.privacy{background:#edf4e9;border-color:#bfd1b9;color:#426146}
+.av-admin-order .av-admin-order-details strong{overflow-wrap:anywhere}
+.av-admin-private-mask{letter-spacing:.04em}
+
+.av-admin-category-toolbar{display:grid;gap:16px;margin-bottom:28px;padding:18px;border:1px solid #dce1d7;border-radius:18px;background:#f7f7f1}
+.av-admin-category-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.av-admin-category-stats article{padding:14px 15px;background:#fff;border:1px solid #dfe3db;border-radius:13px}
+.av-admin-category-stats span{display:block;font-size:11px;font-weight:700;color:#7a8579}
+.av-admin-category-stats strong{display:block;margin-top:5px;font:600 25px/1.2 var(--font-editorial),serif}
+.av-admin-category-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}
+.av-admin-category-create-simple{margin:0 0 28px;grid-template-columns:1fr 1fr 1.4fr auto}
+.av-admin-category-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.av-admin-category-pro{padding:18px;border:1px solid #dce1d7;background:#fff;border-radius:16px}
+.av-admin-category-pro.is-empty{background:#f4f4ef}
+.av-admin-category-pro-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.av-admin-category-type,.av-admin-category-count{font-size:10px;font-weight:800;letter-spacing:.08em;color:#7a8577}
+.av-admin-category-pro h3{font-size:19px;margin:10px 0 7px;font-weight:800}
+.av-admin-category-pro>p{font-size:12px;line-height:1.75;color:#697568}
+.av-admin-category-product-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.av-admin-category-product-chips span{display:inline-flex;max-width:100%;padding:6px 8px;border-radius:999px;background:#edf1e9;color:#596b58;font-size:10px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.av-admin-category-status-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;font-weight:700;color:#788477}
+.av-admin-category-visibility{display:inline-flex;padding:5px 8px;border-radius:999px;background:#e5f0e4;color:#43704a}
+.av-admin-category-visibility.is-hidden{background:#eeeae3;color:#806b51}
+.av-admin-custom-category{padding:19px}.av-admin-custom-category-top h3{font-size:19px;font-weight:800}
+.av-admin-category-edit-pro{grid-template-columns:1fr 1.5fr}.av-admin-category-edit-pro>div,.av-admin-category-edit-pro>small{grid-column:1/-1}
+.av-admin-category-edit label{font-size:12px}.av-admin-category-edit input,.av-admin-category-edit textarea{font-size:14px}
+.av-admin-category-edit-pro small{font-size:11px;color:#7a6a4e;line-height:1.6}
+.av-admin-product-filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+.av-admin-product-filter{margin-top:0}
+
+@media(max-width:1050px){
+  .av-admin-category-board{grid-template-columns:1fr 1fr}
+  .av-admin-category-create-simple{grid-template-columns:1fr 1fr}
+  .av-admin-category-create-simple>div{grid-column:1/-1}
+}
+@media(max-width:760px){
+  .av-admin{font-size:16px}
+  .av-admin-nav button{font-size:16px}
+  .av-admin-panel h2{font-size:21px}
+  .av-admin-action{font-size:13px}
+  .av-admin-category-stats{grid-template-columns:1fr}
+  .av-admin-category-tools,.av-admin-category-board,.av-admin-category-create-simple,.av-admin-category-edit-pro{grid-template-columns:1fr}
+  .av-admin-category-create-simple>div,.av-admin-category-edit-pro>div,.av-admin-category-edit-pro>small{grid-column:auto}
+  .av-admin-product-filters{grid-template-columns:1fr}
+  .av-admin-order-details div strong{font-size:14px}
+}
