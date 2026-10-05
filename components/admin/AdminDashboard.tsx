@@ -545,6 +545,11 @@ export default function AdminDashboard() {
           </div>
 
           <div className="av-admin-settings-note">
+            <p><strong>Privacy Mode:</strong> Customer name, phone, address এবং admin email defaultভাবে masked থাকে। Browser/tab focus হারালে private data automatically আবার hide হয়।</p>
+            <button type="button" className={"av-admin-action privacy " + (privacyMode ? "is-private" : "")} onClick={() => {
+              setPrivacyMode((value) => !value);
+              setRevealedOrders(new Set());
+            }}>{privacyMode ? "Show private data globally" : "Hide private data now"}</button>
             <p><strong>Telegram:</strong> Order notification চালু করতে server-side <code>TELEGRAM_BOT_TOKEN</code> এবং <code>TELEGRAM_CHAT_ID</code> environment variables ব্যবহার করতে হবে।</p>
             <p><strong>Admin authorization:</strong> Firebase UID-এর <code>admins/{"{uid}"}</code> document-এ <code>active: true</code> থাকতে হবে।</p>
             <button type="button" className="av-admin-action danger" onClick={() => void signOut(auth)}>Sign out</button>
