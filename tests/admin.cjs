@@ -16,16 +16,16 @@ const compiled = ts.transpileModule(source, {
 const errors = (compiled.diagnostics || []).filter((d) => d.category === ts.DiagnosticCategory.Error);
 assert.equal(errors.length, 0, 'admin utilities parse without errors');
 
-const module = { exports: {} };
+const sandboxModule = { exports: {} };
 vm.runInThisContext(`(function(require,module,exports){${compiled.outputText}\n})`, { filename })(
   (name) => {
     if (name === '@/lib/atelier') return {};
     return require(name);
   },
-  module,
-  module.exports
+  sandboxModule,
+  sandboxModule.exports
 );
-const admin = module.exports;
+const admin = sandboxModule.exports;
 
 assert.equal(admin.normalizeOrderStatus('Packed'), 'Packed');
 assert.equal(admin.normalizeOrderStatus('weird'), 'Pending');
