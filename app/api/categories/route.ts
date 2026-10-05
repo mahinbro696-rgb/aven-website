@@ -40,7 +40,7 @@ export async function GET() {
       documents?: { name: string; fields?: Record<string, Value> }[];
     };
 
-    const custom: ShopCategory[] = (data.documents || [])
+    const custom: ShopCategory[] = ((data.documents || [])
       .filter((document) => document.fields?.published?.booleanValue !== false)
       .map((document) => {
         const fields = document.fields || {};
@@ -55,7 +55,7 @@ export async function GET() {
       })
       .filter((item) => item.name)
       .sort((a, b) => a.position - b.position)
-      .map(({ position: _position, ...item }) => item);
+      .map(({ position: _position, ...item }) => item)) as ShopCategory[];
 
     return NextResponse.json({ success: true, categories: custom }, { headers });
   } catch {
