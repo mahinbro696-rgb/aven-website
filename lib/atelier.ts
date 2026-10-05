@@ -10,11 +10,32 @@ export function whatsappLink(message = "আসসালামু আলাইক
   return `https://wa.me/${CONTACT.whatsapp}?text=${encodeURIComponent(message)}`;
 }
 export const money = (amount: number): string => `৳ ${new Intl.NumberFormat("bn-BD", { maximumFractionDigits: 2 }).format(amount)}`;
+export const PRODUCT_IMAGE_HOSTS = new Set([
+  "firebasestorage.googleapis.com",
+  "storage.googleapis.com",
+  "res.cloudinary.com",
+]);
+
+export function isAllowedProductImage(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const source = value.trim();
+  if (!source) return false;
+  if (source.startsWith("/") && !source.startsWith("//") && !source.includes("\\")) {
+    return source.startsWith("/products/");
+  }
+  try {
+    const url = new URL(source);
+    return url.protocol === "https:"
+      && !url.username
+      && !url.password
+      && PRODUCT_IMAGE_HOSTS.has(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function safeImage(value: unknown): string {
-  if (typeof value !== "string") return "/products/pink.png";
-  if (value.startsWith("/") && !value.startsWith("//") && !value.includes("\\")) return value;
-  try { const url = new URL(value); if (url.protocol === "https:" && !url.username && !url.password) return url.href; } catch { /* use local fallback */ }
-  return "/products/pink.png";
+  return isAllowedProductImage(value) ? value.trim() : "/products/pink.png";
 }
 export function normalizeProduct(id: string, raw: Record<string, unknown>): Product {
   const positive = (value: unknown) => { const n = Number(value); return Number.isFinite(n) && n >= 0 ? n : 0; };
