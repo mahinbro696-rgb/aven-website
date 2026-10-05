@@ -20,3 +20,82 @@
 @media(max-width:360px){.av-header-inner{grid-template-columns:1fr 130px 1fr}.av-hero h1{font-size:52px}.av-hero-cta{gap:13px}.av-contact-actions .av-btn{padding-inline:13px;gap:8px}.av-form-grid{grid-template-columns:1fr}.av-contact-number>a{font-size:30px}}
 @media(hover:none){.av-quick-view{opacity:1;transform:none}.av-floating-label{animation:none}}
 @media(prefers-reduced-motion:reduce){.av *,.av *::before,.av *::after,.av-dialog *,.av-dialog{animation:none!important;transition:none!important;scroll-behavior:auto!important}.av-hero-frame,.av-card-visual,.av-story-art{transform:none!important}}
+
+
+/* Storefront readability pass */
+.av{font-weight:500}
+.av button,.av input,.av textarea,.av select{font-weight:600}
+.av-announcement{font-size:11px;font-weight:700}
+.av-announcement>a{font-size:12px;font-weight:700}
+.av-desktop-nav{font-size:14px;font-weight:700}
+.av-header-contact{font-size:13px;font-weight:700}
+.av-logo span{font-size:9px;font-weight:700}
+.av-count{font-size:10px;font-weight:800}
+.av-hero-description{font-size:15px;font-weight:500}
+.av-hero-secondary{font-size:13px;font-weight:700}
+.av-hero-footnote{font-size:10px;font-weight:700}
+.av-hero-footnote small{font-size:12px;font-weight:600}
+.av-image-label{font-size:10px;font-weight:800}
+.av-frame-caption>div>small{font-size:10px;font-weight:700}
+.av-frame-index small{font-size:11px;font-weight:700}
+.av-look-selector{font-size:12px;font-weight:700}
+.av-scroll-cue{font-size:10px;font-weight:700}
+.av-ribbon{font-size:13px;font-weight:650}
+.av-ribbon>span:nth-of-type(3){font-size:12px}
+.av-section-intro{font-size:15px;font-weight:500}
+.av-collection-caption>span{font-size:12px;font-weight:700}
+.av-search-field input{font-size:14px}
+.av-sort{font-size:13px;font-weight:700}
+.av-filters button{font-size:13px;font-weight:700}
+.av-results{font-size:12px;font-weight:700}
+.av-card-badges span{font-size:11px;font-weight:700}
+.av-quick-view{font-size:13px;font-weight:700}
+.av-card-category{font-size:12px;font-weight:700}
+.av-color-name,.av-small{font-size:12px;font-weight:650}
+.av-card-bottom del{font-size:13px}
+.av-card-buy{font-size:13px;font-weight:700}
+.av-contact-actions>small{font-size:10px;font-weight:700}
+.av-footer-top nav{font-size:13px;font-weight:700}
+.av-footer-bottom{font-size:12px;font-weight:600}
+.av-footer-bottom>span:last-child{font-size:10px}
+.av-back{font-size:13px;font-weight:700}
+.av-zoom-hint{font-size:12px;font-weight:700}
+.av-detail-price>span{font-size:12px;font-weight:700}
+.av-detail-description{font-size:15px}
+.av-detail-option{font-size:14px;font-weight:700}
+.av-color-options button{font-size:13px;font-weight:700}
+.av-detail-quantity{font-size:14px}
+.av-detail-total{font-size:14px}
+.av-delivery-note{font-size:12px}
+.av-detail-actions button{font-size:13px;font-weight:700}
+.av-detail-accordion summary{font-size:14px;font-weight:700}
+.av-detail-accordion p{font-size:13px}
+.av-dialog-head>h2{font-size:20px;font-weight:700}
+.av-checkout-product small{font-size:11px}
+.av-checkout label,.av-search-modal>label,.av-quantity-label>span{font-size:13px;font-weight:700}
+.av-checkout-total{font-size:14px}
+.av-checkout-note{font-size:12px}
+.av-form-error{font-size:12px}
+.av-checkout-whatsapp{font-size:13px;font-weight:700}
+.av-private-note{font-size:11px;font-weight:600}
+.av-order-reference small,.av-order-reference code{font-size:12px}
+
+@media(max-width:600px){
+  .av-announcement{font-size:10px}
+  .av-logo span{font-size:8px}
+  .av-eyebrow{font-size:10px}
+  .av-hero-description{font-size:14px}
+  .av-hero-cta .av-btn{font-size:13px!important}
+  .av-hero-secondary{font-size:13px}
+  .av-frame-caption>div>small{font-size:9px}
+  .av-look-selector{font-size:11px}
+  .av-scroll-cue{font-size:9px}
+  .av-section-intro{font-size:14px}
+  .av-sort,.av-filters button{font-size:12px}
+  .av-quick-view{font-size:13px}
+  .av-story-copy>p:not(.av-eyebrow),.av-steps p,.av-faq p,.av-contact p:not(.av-eyebrow){font-size:14px}
+  .av-faq summary{font-size:14px}
+  .av-footer-top nav{font-size:13px}
+  .av-footer-bottom{font-size:11px}
+  .av-mobile-order small{font-size:11px}
+}
