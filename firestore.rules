@@ -8,6 +8,8 @@ service cloud.firestore {
 
     function isAdmin() {
       return signedIn()
+        && request.auth.token.auth_time is int
+        && request.time < timestamp.value(request.auth.token.auth_time * 1000) + duration.value(8, 'h')
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
         && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active == true;
     }
@@ -126,7 +128,8 @@ service cloud.firestore {
     match /admins/{uid} {
       allow get: if signedIn() && request.auth.uid == uid;
       allow list: if isAdmin();
-      allow create, update, delete: if isAdmin();
+      // Admin access can only be granted/revoked through the trusted Firebase Console/Admin SDK.
+      allow create, update, delete: if false;
     }
 
     match /settings/{settingId} {
