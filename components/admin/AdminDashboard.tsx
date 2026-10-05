@@ -2,14 +2,21 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { collection, doc, getDocs, orderBy, query, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { collection, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
 import { productCategories, productsInCategory } from "@/lib/shop-categories";
+import {
+  canCancelOrder,
+  nextOrderStatus,
+  normalizeOrderStatus,
+  productStockState,
+  stockLabel,
+  type OrderStatus,
+} from "@/lib/admin";
 import type { Product } from "@/lib/atelier";
 import ProductSection from "./ProductSection";
 import CategoryManager from "./CategoryManager";
-import { auth } from "@/lib/firebase";
-import { signOut } from "firebase/auth";
 
 type Tab = "overview" | "products" | "categories" | "orders" | "settings";
 type TimestampLike = { toDate?: () => Date; seconds?: number };
@@ -25,6 +32,7 @@ type Order = {
   subtotal?: number;
   status?: string;
   paymentStatus?: string;
+  note?: string;
   createdAt?: TimestampLike;
 };
 
@@ -36,6 +44,13 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: "settings", label: "Settings", icon: "⚙" },
 ];
 
+const nextStatusLabel: Partial<Record<OrderStatus, string>> = {
+  Confirmed: "Confirm order",
+  Packed: "Mark packed",
+  Shipped: "Mark shipped",
+  Delivered: "Mark delivered",
+};
+
 function dateText(value?: TimestampLike) {
   try {
     const date = typeof value?.toDate === "function"
@@ -43,14 +58,32 @@ function dateText(value?: TimestampLike) {
       : typeof value?.seconds === "number"
         ? new Date(value.seconds * 1000)
         : null;
-    return date ? new Intl.DateTimeFormat("bn-BD", { dateStyle: "medium", timeStyle: "short" }).format(date) : "তারিখ পাওয়া যায়নি";
+    return date
+      ? new Intl.DateTimeFormat("bn-BD", { dateStyle: "medium", timeStyle: "short" }).format(date)
+      : "তারিখ পাওয়া যায়নি";
   } catch {
     return "তারিখ পাওয়া যায়নি";
   }
 }
 
-function statusClass(status = "Pending") {
-  return status.toLowerCase().replace(/[^a-z]/g, "") || "pending";
+function statusClass(status: unknown) {
+  return normalizeOrderStatus(status).toLowerCase();
+}
+
+function parseProduct(id: string, raw: Record<string, any>): Product {
+  return {
+    id,
+    name: String(raw.name || "AVEN Product"),
+    category: String(raw.category || "কালেকশন"),
+    price: Number(raw.price || 0),
+    oldPrice: Number(raw.oldPrice || 0),
+    description: String(raw.description || ""),
+    mainImage: String(raw.mainImage || "/products/pink.png"),
+    colors: Array.isArray(raw.colors) ? raw.colors : [],
+    available: raw.available !== false,
+    stock: typeof raw.stock === "number" ? raw.stock : undefined,
+    createdAt: typeof raw.createdAt?.seconds === "number" ? raw.createdAt.seconds * 1000 : 0,
+  };
 }
 
 export default function AdminDashboard() {
@@ -67,25 +100,13 @@ export default function AdminDashboard() {
     setLoading(true);
     setMessage("");
     try {
-      const orderSnap = await getDocs(query(collection(db, "orders"), orderBy("createdAt", "desc")));
-      const productSnap = await getDocs(query(collection(db, "products"), orderBy("createdAt", "desc")));
+      const [orderSnap, productSnap] = await Promise.all([
+        getDocs(query(collection(db, "orders"), orderBy("createdAt", "desc"))),
+        getDocs(query(collection(db, "products"), orderBy("createdAt", "desc"))),
+      ]);
 
       setOrders(orderSnap.docs.map((item) => ({ id: item.id, ...item.data() } as Order)));
-      setProducts(productSnap.docs.map((item) => {
-        const raw = item.data();
-        return {
-          id: item.id,
-          name: String(raw.name || "AVEN Product"),
-          category: String(raw.category || "কালেকশন"),
-          price: Number(raw.price || 0),
-          oldPrice: Number(raw.oldPrice || 0),
-          description: String(raw.description || ""),
-          mainImage: String(raw.mainImage || "/products/pink.png"),
-          colors: Array.isArray(raw.colors) ? raw.colors : [],
-          available: raw.available !== false,
-          createdAt: typeof raw.createdAt?.seconds === "number" ? raw.createdAt.seconds * 1000 : 0,
-        };
-      }));
+      setProducts(productSnap.docs.map((item) => parseProduct(item.id, item.data())));
     } catch (error) {
       console.error("AVEN_ADMIN_LOAD_FAILED", error instanceof Error ? error.name : "UnknownError");
       setMessage("Admin data load করা যায়নি। Firebase permission ও connection যাচাই করুন।");
@@ -96,26 +117,62 @@ export default function AdminDashboard() {
 
   useEffect(() => { void load(); }, [load]);
 
+  useEffect(() => {
+    const refresh = () => void load();
+    window.addEventListener("aven:admin-refresh", refresh);
+    return () => window.removeEventListener("aven:admin-refresh", refresh);
+  }, [load]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [menuOpen]);
+
   const metrics = useMemo(() => ({
     orders: orders.length,
-    pending: orders.filter((order) => (order.status || "Pending") === "Pending").length,
-    delivered: orders.filter((order) => order.status === "Delivered").length,
-    products: products.filter((product) => product.available).length,
+    pending: orders.filter((order) => normalizeOrderStatus(order.status) === "Pending").length,
+    processing: orders.filter((order) => ["Confirmed", "Packed", "Shipped"].includes(normalizeOrderStatus(order.status))).length,
+    delivered: orders.filter((order) => normalizeOrderStatus(order.status) === "Delivered").length,
+    lowStock: products.filter((product) => ["low", "out"].includes(productStockState(product))).length,
   }), [orders, products]);
+
+  const requestValue = useMemo(() => orders
+    .filter((order) => normalizeOrderStatus(order.status) !== "Cancelled")
+    .reduce((sum, order) => sum + (typeof order.subtotal === "number" ? order.subtotal : 0), 0), [orders]);
+
+  const inventoryAlerts = useMemo(() => products
+    .filter((product) => ["low", "out"].includes(productStockState(product)))
+    .sort((a, b) => {
+      const rank = { out: 0, low: 1, healthy: 2, untracked: 3 };
+      return rank[productStockState(a)] - rank[productStockState(b)];
+    }), [products]);
 
   const categories = useMemo(() => productCategories(products), [products]);
 
   const filteredOrders = useMemo(() => orders.filter((order) => {
-    const text = [order.name, order.phone, order.product, order.id].filter(Boolean).join(" ").toLowerCase();
+    const text = [order.name, order.phone, order.product, order.id, order.district]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
     const searchOkay = !search.trim() || text.includes(search.trim().toLowerCase());
-    const statusOkay = statusFilter === "all" || (order.status || "Pending") === statusFilter;
+    const statusOkay = statusFilter === "all" || normalizeOrderStatus(order.status) === statusFilter;
     return searchOkay && statusOkay;
   }), [orders, search, statusFilter]);
 
-  async function setOrderStatus(order: Order, status: string) {
+  async function setOrderStatus(order: Order, status: OrderStatus) {
+    if (status === "Cancelled" && !window.confirm(order.id + " order cancel করবেন?")) return;
+    if (status === "Delivered" && !window.confirm(order.id + " delivery complete হয়েছে নিশ্চিত?")) return;
+
     setMessage("");
     try {
-      await updateDoc(doc(db, "orders", order.id), { status });
+      await updateDoc(doc(db, "orders", order.id), {
+        status,
+        statusUpdatedAt: serverTimestamp(),
+      });
       setOrders((all) => all.map((item) => item.id === order.id ? { ...item, status } : item));
       setMessage(order.id + " → " + status);
     } catch {
@@ -127,12 +184,22 @@ export default function AdminDashboard() {
     setTab(next);
     setMenuOpen(false);
   }
+
+  async function copyText(value: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setMessage(label + " copy হয়েছে।");
+    } catch {
+      setMessage("Copy করা যায়নি। Browser permission যাচাই করুন।");
+    }
+  }
+
   function exportOrders() {
     const rows = [
       ["Reference", "Status", "Customer", "Phone", "District", "Address", "Product", "Color", "Quantity", "Subtotal", "Payment"],
       ...filteredOrders.map((order) => [
         order.id,
-        order.status || "Pending",
+        normalizeOrderStatus(order.status),
         order.name || "",
         order.phone || "",
         order.district || "",
@@ -144,7 +211,11 @@ export default function AdminDashboard() {
         order.paymentStatus || "Not collected",
       ]),
     ];
-    const csv = rows.map((row) => row.map((value) => '"' + String(value).replaceAll('"', '""') + '"').join(",")).join("\n");
+
+    const csv = rows
+      .map((row) => row.map((value) => '"' + String(value).replaceAll('"', '""') + '"').join(","))
+      .join("\n");
+
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -154,10 +225,13 @@ export default function AdminDashboard() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-
   return <div className="av-admin">
     <div className="av-admin-shell">
+      {menuOpen && <button type="button" className="av-admin-backdrop" aria-label="Admin menu বন্ধ করুন" onClick={() => setMenuOpen(false)} />}
+
       <aside className={"av-admin-side " + (menuOpen ? "is-open" : "")}>
+        <button type="button" className="av-admin-side-close" aria-label="Menu বন্ধ করুন" onClick={() => setMenuOpen(false)}>×</button>
+
         <Link href="/" className="av-admin-brand">
           <strong>AVEN</strong>
           <span>STORE CONTROL CENTER</span>
@@ -177,8 +251,8 @@ export default function AdminDashboard() {
         </nav>
 
         <div className="av-admin-side-foot">
-          Preview admin workspace.<br />
-          Secure authentication and Firestore rules must be configured before production use.
+          <strong>{auth.currentUser?.email || "Authorized admin"}</strong>
+          <span>Firebase authenticated session</span>
         </div>
       </aside>
 
@@ -189,120 +263,233 @@ export default function AdminDashboard() {
             <div>
               <p className="av-admin-kicker">AVEN / ADMINISTRATION</p>
               <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
-              <p>Products, categories, orders এবং storefront এক জায়গা থেকে manage করুন।</p>
+              <p>Products, categories, inventory এবং orders এক জায়গা থেকে manage করুন।</p>
             </div>
           </div>
-          <Link className="av-admin-preview" href="/" target="_blank">Storefront দেখুন ↗</Link>
+
+          <div className="av-admin-top-actions">
+            <span className="av-admin-user-pill">{auth.currentUser?.email || "Admin"}</span>
+            <Link className="av-admin-preview" href="/" target="_blank">Storefront দেখুন ↗</Link>
+          </div>
         </header>
 
-        <div className="av-admin-security">
-          <span aria-hidden="true">⚠</span>
-          <div>
-            <strong>Security setup এখনও বাকি</strong>
-            Firebase Authentication + restrictive Firestore rules configure না করা পর্যন্ত /admin-কে secure production admin হিসেবে ধরা যাবে না।
-          </div>
+        <div className="av-admin-systembar">
+          <span><i className="is-good" /> Admin login active</span>
+          <span><i className="is-good" /> Firestore admin access</span>
+          <span><i className="is-note" /> Images: URL mode</span>
         </div>
 
-        {message && <div className="av-admin-security" role="status"><span aria-hidden="true">✓</span><div>{message}</div></div>}
+        {message && <div className="av-admin-notice" role="status">
+          <span aria-hidden="true">✓</span>
+          <div>{message}</div>
+          <button type="button" aria-label="Message বন্ধ করুন" onClick={() => setMessage("")}>×</button>
+        </div>}
 
         {tab === "overview" && <>
           <section className="av-admin-metrics">
             <Metric label="Total orders" value={metrics.orders} />
             <Metric label="Pending" value={metrics.pending} />
+            <Metric label="Processing" value={metrics.processing} />
             <Metric label="Delivered" value={metrics.delivered} />
-            <Metric label="Visible products" value={metrics.products} />
+            <Metric label="Stock alerts" value={metrics.lowStock} />
+          </section>
+
+          <section className="av-admin-overview-strip">
+            <div>
+              <span>ORDER REQUEST VALUE</span>
+              <strong>৳ {new Intl.NumberFormat("bn-BD", { maximumFractionDigits: 2 }).format(requestValue)}</strong>
+              <small>Cancelled orders বাদ। এটা collected revenue নয়।</small>
+            </div>
+            <button className="av-admin-action primary" type="button" onClick={() => changeTab("products")}>Manage products</button>
+            <button className="av-admin-action" type="button" onClick={() => changeTab("orders")}>Open orders</button>
           </section>
 
           <div className="av-admin-grid">
             <section className="av-admin-panel">
               <div className="av-admin-panel-head">
-                <div><h2>Recent orders</h2><p>সর্বশেষ customer orders</p></div>
+                <div><h2>Recent orders</h2><p>সর্বশেষ customer order requests</p></div>
                 <button className="av-admin-action" onClick={() => changeTab("orders")}>সব দেখুন</button>
               </div>
+
               <div className="av-admin-list">
-                {loading ? <div className="av-admin-empty">Loading…</div> : orders.slice(0, 6).map((order) => <div className="av-admin-list-row" key={order.id}>
-                  <div><strong>{order.name || "Customer"}</strong><span>{order.product || "Order"} · {dateText(order.createdAt)}</span></div>
-                  <span className={"av-admin-status " + statusClass(order.status)}>{order.status || "Pending"}</span>
-                </div>)}
+                {loading ? <div className="av-admin-empty">Loading…</div> : orders.length ? orders.slice(0, 6).map((order) => <div className="av-admin-list-row" key={order.id}>
+                  <div>
+                    <strong>{order.name || "Customer"}</strong>
+                    <span>{order.product || "Order"} · {dateText(order.createdAt)}</span>
+                  </div>
+                  <span className={"av-admin-status " + statusClass(order.status)}>{normalizeOrderStatus(order.status)}</span>
+                </div>) : <div className="av-admin-empty">এখনো কোনো order নেই।</div>}
               </div>
             </section>
 
             <section className="av-admin-panel">
               <div className="av-admin-panel-head">
-                <div><h2>Store structure</h2><p>Homepage category overview</p></div>
-                <button className="av-admin-action" onClick={() => changeTab("categories")}>Manage</button>
+                <div><h2>Inventory alerts</h2><p>Stock শেষ বা কম হয়ে আসা products</p></div>
+                <button className="av-admin-action" onClick={() => changeTab("products")}>Products</button>
               </div>
+
               <div className="av-admin-list">
-                {categories.map((category) => {
-                  const count = productsInCategory(products, category.key).length;
-                  return <div className="av-admin-list-row" key={category.key}>
-                    <div><strong>{category.name}</strong><span>{count ? "Homepage-এ active" : "এখনো product নেই"}</span></div>
-                    <strong>{new Intl.NumberFormat("bn-BD").format(count)}</strong>
-                  </div>;
-                })}
+                {inventoryAlerts.length ? inventoryAlerts.slice(0, 6).map((product) => <div className="av-admin-list-row" key={product.id}>
+                  <div>
+                    <strong>{product.name}</strong>
+                    <span>{product.category}</span>
+                  </div>
+                  <span className={"av-admin-stock-badge is-" + productStockState(product)}>{stockLabel(product)}</span>
+                </div>) : <div className="av-admin-empty">Tracked stock-এ কোনো alert নেই।</div>}
               </div>
             </section>
           </div>
+
+          <section className="av-admin-panel av-admin-structure-panel">
+            <div className="av-admin-panel-head">
+              <div><h2>Store structure</h2><p>Homepage category overview</p></div>
+              <button className="av-admin-action" onClick={() => changeTab("categories")}>Manage categories</button>
+            </div>
+
+            <div className="av-admin-structure-grid">
+              {categories.map((category) => {
+                const count = productsInCategory(products, category.key).length;
+                return <div className="av-admin-structure-item" key={category.key}>
+                  <span>{category.eyebrow}</span>
+                  <strong>{category.name}</strong>
+                  <small>{count ? new Intl.NumberFormat("bn-BD").format(count) + "টি product" : "এখনো product নেই"}</small>
+                </div>;
+              })}
+            </div>
+          </section>
         </>}
 
         {tab === "products" && <section className="av-admin-product-wrap"><ProductSection /></section>}
 
         {tab === "categories" && <section className="av-admin-panel">
           <div className="av-admin-panel-head">
-            <div><h2>Product categories</h2><p>Main collections এবং future custom categories manage করুন।</p></div>
+            <div><h2>Product categories</h2><p>Main collections এবং custom categories manage করুন।</p></div>
           </div>
           <CategoryManager products={products} />
         </section>}
 
         {tab === "orders" && <section className="av-admin-panel">
           <div className="av-admin-panel-head">
-            <div><h2>Order management</h2><p>Customer details, products এবং status manage করুন।</p></div>
-            <div className="av-admin-order-head-actions"><button className="av-admin-action" onClick={exportOrders}>Export CSV</button><button className="av-admin-action" onClick={() => void load()}>Refresh</button></div>
+            <div>
+              <h2>Order management</h2>
+              <p>Customer details, fulfilment status এবং contact actions.</p>
+            </div>
+            <div className="av-admin-order-head-actions">
+              <button className="av-admin-action" onClick={exportOrders}>Export CSV</button>
+              <button className="av-admin-action" onClick={() => void load()}>Refresh</button>
+            </div>
           </div>
 
           <div className="av-admin-toolbar">
-            <input className="av-admin-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="নাম, ফোন, পণ্য বা order reference…" />
+            <input
+              className="av-admin-input"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="নাম, ফোন, district, product বা order reference…"
+            />
             <select className="av-admin-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
               <option value="all">সব status</option>
               <option>Pending</option>
               <option>Confirmed</option>
+              <option>Packed</option>
+              <option>Shipped</option>
               <option>Delivered</option>
               <option>Cancelled</option>
             </select>
           </div>
 
           <div className="av-admin-order-grid">
-            {loading ? <div className="av-admin-empty">Orders loading…</div> : filteredOrders.length ? filteredOrders.map((order) => <article className="av-admin-order" key={order.id}>
-              <div className="av-admin-order-top">
-                <div><h3>{order.name || "Customer"}</h3><p>{order.id}<br />{dateText(order.createdAt)}</p></div>
-                <span className={"av-admin-status " + statusClass(order.status)}>{order.status || "Pending"}</span>
-              </div>
+            {loading ? <div className="av-admin-empty">Orders loading…</div> : filteredOrders.length ? filteredOrders.map((order) => {
+              const status = normalizeOrderStatus(order.status);
+              const next = nextOrderStatus(status);
 
-              <div className="av-admin-order-details">
-                <div><span>CONTACT</span><strong>{order.phone || "—"}<br />{order.district || "—"}<br />{order.address || "—"}</strong></div>
-                <div><span>PRODUCT</span><strong>{order.product || "—"}<br />রঙ: {order.color || "—"} · Qty: {order.quantity || 1}</strong></div>
-                <div><span>AMOUNT</span><strong>{typeof order.subtotal === "number" ? "৳ " + new Intl.NumberFormat("bn-BD").format(order.subtotal) : "—"}<br />Payment: {order.paymentStatus || "Not collected"}</strong></div>
-              </div>
+              return <article className="av-admin-order" key={order.id}>
+                <div className="av-admin-order-top">
+                  <div>
+                    <h3>{order.name || "Customer"}</h3>
+                    <p>{order.id}<br />{dateText(order.createdAt)}</p>
+                  </div>
+                  <span className={"av-admin-status " + statusClass(status)}>{status}</span>
+                </div>
 
-              <div className="av-admin-order-actions">
-                {(order.status || "Pending") === "Pending" && <button className="av-admin-action primary" onClick={() => void setOrderStatus(order, "Confirmed")}>Confirm order</button>}
-                {order.status === "Confirmed" && <button className="av-admin-action primary" onClick={() => void setOrderStatus(order, "Delivered")}>Mark delivered</button>}
-                {order.status !== "Cancelled" && order.status !== "Delivered" && <button className="av-admin-action danger" onClick={() => void setOrderStatus(order, "Cancelled")}>Cancel</button>}
-                {order.phone && <a className="av-admin-action" href={"tel:" + order.phone}>Call customer</a>}
-                {order.phone && /^01[3-9]\d{8}$/.test(order.phone) && <a className="av-admin-action" href={"https://wa.me/88" + order.phone} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
-              </div>
-            </article>) : <div className="av-admin-empty">এই filter-এ কোনো order পাওয়া যায়নি।</div>}
+                <div className="av-admin-order-details">
+                  <div>
+                    <span>CONTACT</span>
+                    <strong>{order.phone || "—"}<br />{order.district || "—"}<br />{order.address || "—"}</strong>
+                  </div>
+                  <div>
+                    <span>PRODUCT</span>
+                    <strong>{order.product || "—"}<br />রঙ: {order.color || "—"} · Qty: {order.quantity || 1}</strong>
+                  </div>
+                  <div>
+                    <span>AMOUNT</span>
+                    <strong>
+                      {typeof order.subtotal === "number" ? "৳ " + new Intl.NumberFormat("bn-BD").format(order.subtotal) : "—"}
+                      <br />Payment: {order.paymentStatus || "Not collected"}
+                    </strong>
+                  </div>
+                </div>
+
+                {order.note && <div className="av-admin-order-note"><span>Customer note</span><p>{order.note}</p></div>}
+
+                <div className="av-admin-order-actions">
+                  {next && <button className="av-admin-action primary" onClick={() => void setOrderStatus(order, next)}>
+                    {nextStatusLabel[next] || ("Move to " + next)}
+                  </button>}
+
+                  {canCancelOrder(status) && <button className="av-admin-action danger" onClick={() => void setOrderStatus(order, "Cancelled")}>Cancel</button>}
+
+                  {order.phone && <a className="av-admin-action" href={"tel:" + order.phone}>Call</a>}
+
+                  {order.phone && /^01[3-9]\d{8}$/.test(order.phone) && <a
+                    className="av-admin-action"
+                    href={"https://wa.me/88" + order.phone + "?text=" + encodeURIComponent("আসসালামু আলাইকুম, AVEN থেকে আপনার order " + order.id + " সম্পর্কে যোগাযোগ করছি।")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >WhatsApp</a>}
+
+                  {order.address && <button className="av-admin-action" type="button" onClick={() => void copyText(order.address || "", "Address")}>Copy address</button>}
+                  <button className="av-admin-action" type="button" onClick={() => void copyText(order.id, "Order reference")}>Copy ID</button>
+                </div>
+              </article>;
+            }) : <div className="av-admin-empty">এই filter-এ কোনো order পাওয়া যায়নি।</div>}
           </div>
         </section>}
 
         {tab === "settings" && <section className="av-admin-panel">
           <div className="av-admin-panel-head">
-            <div><h2>Settings & security</h2><p>Production launch-এর আগে এই অংশ শেষ করতে হবে।</p></div>
+            <div><h2>Settings & security</h2><p>বর্তমান AVEN admin configuration</p></div>
           </div>
+
+          <div className="av-admin-settings-grid">
+            <article>
+              <span>ADMIN SESSION</span>
+              <strong>{auth.currentUser?.email || "Authenticated admin"}</strong>
+              <p>Firebase Authentication দিয়ে protected session.</p>
+            </article>
+
+            <article>
+              <span>DATABASE ACCESS</span>
+              <strong>Admin-authorized Firestore</strong>
+              <p>Products/categories admin-write; order management authenticated admin-এর জন্য।</p>
+            </article>
+
+            <article>
+              <span>PRODUCT IMAGES</span>
+              <strong>URL mode</strong>
+              <p>বর্তমানে built-in AVEN path / Firebase URL / Cloudinary URL support করা হচ্ছে। Direct file upload পরে Cloudinary connect করলে যোগ হবে।</p>
+            </article>
+
+            <article>
+              <span>PAYMENT</span>
+              <strong>Not collected online</strong>
+              <p>Website order request নেয়; online payment successful বলে claim করে না।</p>
+            </article>
+          </div>
+
           <div className="av-admin-settings-note">
-            <p><strong>Admin session:</strong> Firebase Authentication sign-in gate active। Database-side rules deploy করার পর authorization server-side enforce হবে।</p>
-            <p><strong>Telegram:</strong> Bot token admin browser-এ দেখানো বা public Firestore document-এ রাখা উচিত নয়। Production-এ <code>TELEGRAM_BOT_TOKEN</code> এবং <code>TELEGRAM_CHAT_ID</code> server environment variables হিসেবে রাখা হবে।</p>
-            <p><strong>Authorization:</strong> Authorized account-এর UID অনুযায়ী <code>admins/{"{uid}"}</code> record রাখতে হবে।</p>
+            <p><strong>Telegram:</strong> Order notification চালু করতে server-side <code>TELEGRAM_BOT_TOKEN</code> এবং <code>TELEGRAM_CHAT_ID</code> environment variables ব্যবহার করতে হবে।</p>
+            <p><strong>Admin authorization:</strong> Firebase UID-এর <code>admins/{"{uid}"}</code> document-এ <code>active: true</code> থাকতে হবে।</p>
             <button type="button" className="av-admin-action danger" onClick={() => void signOut(auth)}>Sign out</button>
           </div>
         </section>}
