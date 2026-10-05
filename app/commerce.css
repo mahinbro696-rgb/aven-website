@@ -18,3 +18,40 @@
 @media(max-width:360px){.av-header-actions .av-icon-btn{width:36px}.av-logo{font-size:27px}.av-logo span{display:none}.av-bag-line{grid-template-columns:69px minmax(0,1fr);gap:12px}.av-bag-photo{height:110px}.av-bag-line-bottom{flex-wrap:wrap}.av-checkout-progress button{font-size:9px;gap:5px}.av-dialog-checkout .av-dialog-surface{padding-inline:16px}}
 @media(prefers-reduced-motion:reduce){.av-dialog-drawer[open],.av-bag-count,.av-bag-line,.av-receipt,.av-receipt-check,.av-bag-subtotal strong,.av-summary-totals strong{animation:none!important}.av-purchase-actions .av-btn,.av-commerce-notice,.av-bag-photo img{transition:none!important;transform:none!important}.av-commerce-notice{transform:translateX(-50%)!important}}
 .av-bag-inline-notice{margin-top:16px!important;padding:11px 14px;border:1px solid #cbd9ba;background:#e8efdf;color:#42652e;border-radius:8px;font-size:11px;line-height:1.8}
+
+
+/* Commerce readability pass */
+.av-card-details-link,.av-detail-whatsapp{font-size:13px;font-weight:700}
+.av-bag-intro .av-eyebrow,.av-checkout-main>.av-eyebrow,.av-receipt>.av-eyebrow{font-size:10px}
+.av-bag-intro>p>span{font-size:13px}
+.av-bag-category{font-size:11px;font-weight:700}
+.av-bag-color{font-size:12px}
+.av-bag-color select{font-size:13px}
+.av-bag-error,.av-bag-undo{font-size:12px}
+.av-bag-footer>p{font-size:12px}
+.av-bag-reassurance{font-size:11px;font-weight:600}
+.av-dialog-checkout .av-dialog-head>h2{font-size:18px;font-weight:700}
+.av-checkout-progress button{font-size:12px;font-weight:700}
+.av-checkout-progress button span{font-size:12px}
+.av-checkout-subtitle{font-size:14px}
+.av-premium-form label{font-size:13px;font-weight:700}
+.av-order-note summary{font-size:13px;font-weight:700}
+.av-order-note summary span{font-size:11px}
+.av-summary-head{font-size:11px;font-weight:700}
+.av-summary-item strong{font-size:14px}
+.av-summary-item small{font-size:12px}
+.av-summary-totals>p{font-size:13px}
+.av-summary-footnote{font-size:12px}
+.av-summary-brand span{font-size:9px}
+.av-address-review>div,.av-address-review button{font-size:12px}
+.av-payment-explanation strong{font-size:14px}
+.av-payment-explanation p,.av-review-step .av-consent,.av-checkout-error,.av-checkout-support{font-size:13px}
+.av-pending-reference code,.av-pending-reference a{font-size:12px}
+.av-receipt-ticket>span{font-size:10px}
+.av-receipt-ticket>small,.av-receipt-ticket>code,.av-receipt-ticket>button,.av-receipt-ticket p small{font-size:12px}
+
+@media(max-width:680px){
+  .av-checkout-progress button{font-size:11px}
+  .av-bag-reassurance{font-size:11px}
+  .av-commerce-notice{font-size:12px}
+}
