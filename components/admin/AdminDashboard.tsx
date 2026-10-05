@@ -8,8 +8,12 @@ import { auth, db } from "@/lib/firebase";
 import { productCategories, productsInCategory } from "@/lib/shop-categories";
 import {
   canCancelOrder,
+  maskEmail,
+  maskPersonalText,
+  maskPhone,
   nextOrderStatus,
   normalizeOrderStatus,
+  privateAddressPlaceholder,
   productStockState,
   stockLabel,
   type OrderStatus,
@@ -95,6 +99,8 @@ export default function AdminDashboard() {
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [privacyMode, setPrivacyMode] = useState(true);
+  const [revealedOrders, setRevealedOrders] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -131,6 +137,22 @@ export default function AdminDashboard() {
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, [menuOpen]);
+
+  useEffect(() => {
+    const protect = () => {
+      setPrivacyMode(true);
+      setRevealedOrders(new Set());
+    };
+    const onVisibility = () => {
+      if (document.hidden) protect();
+    };
+    window.addEventListener("blur", protect);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("blur", protect);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   const metrics = useMemo(() => ({
     orders: orders.length,
@@ -185,6 +207,19 @@ export default function AdminDashboard() {
     setMenuOpen(false);
   }
 
+  function toggleOrderPrivacy(orderId: string) {
+    setRevealedOrders((current) => {
+      const next = new Set(current);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      return next;
+    });
+  }
+
+  function privateVisible(orderId: string) {
+    return !privacyMode || revealedOrders.has(orderId);
+  }
+
   async function copyText(value: string, label: string) {
     try {
       await navigator.clipboard.writeText(value);
@@ -194,16 +229,18 @@ export default function AdminDashboard() {
     }
   }
 
-  function exportOrders() {
+  function exportOrders(includePrivate = false) {
+    if (includePrivate && !window.confirm("এই CSV-তে customer-এর full name, phone ও address থাকবে। Secure device-এ export করছেন নিশ্চিত?")) return;
+
     const rows = [
       ["Reference", "Status", "Customer", "Phone", "District", "Address", "Product", "Color", "Quantity", "Subtotal", "Payment"],
       ...filteredOrders.map((order) => [
         order.id,
         normalizeOrderStatus(order.status),
-        order.name || "",
-        order.phone || "",
-        order.district || "",
-        order.address || "",
+        includePrivate ? (order.name || "") : maskPersonalText(order.name || ""),
+        includePrivate ? (order.phone || "") : maskPhone(order.phone || ""),
+        includePrivate ? (order.district || "") : maskPersonalText(order.district || ""),
+        includePrivate ? (order.address || "") : privateAddressPlaceholder(order.address || ""),
         order.product || "",
         order.color || "",
         String(order.quantity || 1),
@@ -251,7 +288,7 @@ export default function AdminDashboard() {
         </nav>
 
         <div className="av-admin-side-foot">
-          <strong>{auth.currentUser?.email || "Authorized admin"}</strong>
+          <strong>{privacyMode ? maskEmail(auth.currentUser?.email || "admin@aven.store") : (auth.currentUser?.email || "Authorized admin")}</strong>
           <span>Firebase authenticated session</span>
         </div>
       </aside>
@@ -268,7 +305,13 @@ export default function AdminDashboard() {
           </div>
 
           <div className="av-admin-top-actions">
-            <span className="av-admin-user-pill">{auth.currentUser?.email || "Admin"}</span>
+            <button type="button" className={"av-admin-privacy-toggle " + (privacyMode ? "is-private" : "is-visible")} onClick={() => {
+              setPrivacyMode((value) => !value);
+              setRevealedOrders(new Set());
+            }}>
+              {privacyMode ? "◉ Privacy ON" : "◉ Private data visible"}
+            </button>
+            <span className="av-admin-user-pill">{privacyMode ? maskEmail(auth.currentUser?.email || "admin@aven.store") : (auth.currentUser?.email || "Admin")}</span>
             <Link className="av-admin-preview" href="/" target="_blank">Storefront দেখুন ↗</Link>
           </div>
         </header>
@@ -276,6 +319,7 @@ export default function AdminDashboard() {
         <div className="av-admin-systembar">
           <span><i className="is-good" /> Admin login active</span>
           <span><i className="is-good" /> Firestore admin access</span>
+          <span><i className={privacyMode ? "is-good" : "is-note"} /> {privacyMode ? "Private data masked" : "Private data visible"}</span>
           <span><i className="is-note" /> Images: URL mode</span>
         </div>
 
@@ -314,7 +358,7 @@ export default function AdminDashboard() {
               <div className="av-admin-list">
                 {loading ? <div className="av-admin-empty">Loading…</div> : orders.length ? orders.slice(0, 6).map((order) => <div className="av-admin-list-row" key={order.id}>
                   <div>
-                    <strong>{order.name || "Customer"}</strong>
+                    <strong>{privacyMode ? maskPersonalText(order.name || "Customer") : (order.name || "Customer")}</strong>
                     <span>{order.product || "Order"} · {dateText(order.createdAt)}</span>
                   </div>
                   <span className={"av-admin-status " + statusClass(order.status)}>{normalizeOrderStatus(order.status)}</span>
@@ -375,7 +419,8 @@ export default function AdminDashboard() {
               <p>Customer details, fulfilment status এবং contact actions.</p>
             </div>
             <div className="av-admin-order-head-actions">
-              <button className="av-admin-action" onClick={exportOrders}>Export CSV</button>
+              <button className="av-admin-action" onClick={() => exportOrders(false)}>Export masked CSV</button>
+              <button className="av-admin-action" onClick={() => exportOrders(true)}>Export full CSV</button>
               <button className="av-admin-action" onClick={() => void load()}>Refresh</button>
             </div>
           </div>
@@ -403,10 +448,12 @@ export default function AdminDashboard() {
               const status = normalizeOrderStatus(order.status);
               const next = nextOrderStatus(status);
 
+              const showPrivate = privateVisible(order.id);
+
               return <article className="av-admin-order" key={order.id}>
                 <div className="av-admin-order-top">
                   <div>
-                    <h3>{order.name || "Customer"}</h3>
+                    <h3>{showPrivate ? (order.name || "Customer") : maskPersonalText(order.name || "Customer")}</h3>
                     <p>{order.id}<br />{dateText(order.createdAt)}</p>
                   </div>
                   <span className={"av-admin-status " + statusClass(status)}>{status}</span>
@@ -414,8 +461,14 @@ export default function AdminDashboard() {
 
                 <div className="av-admin-order-details">
                   <div>
-                    <span>CONTACT</span>
-                    <strong>{order.phone || "—"}<br />{order.district || "—"}<br />{order.address || "—"}</strong>
+                    <span>CONTACT · {showPrivate ? "VISIBLE" : "MASKED"}</span>
+                    <strong>
+                      {showPrivate ? (order.phone || "—") : maskPhone(order.phone || "")}
+                      <br />
+                      {showPrivate ? (order.district || "—") : maskPersonalText(order.district || "")}
+                      <br />
+                      {showPrivate ? (order.address || "—") : privateAddressPlaceholder(order.address || "")}
+                    </strong>
                   </div>
                   <div>
                     <span>PRODUCT</span>
@@ -430,7 +483,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {order.note && <div className="av-admin-order-note"><span>Customer note</span><p>{order.note}</p></div>}
+                {order.note && <div className="av-admin-order-note"><span>Customer note</span><p>{showPrivate ? order.note : "•••••••••• Customer note hidden by Privacy Mode"}</p></div>}
 
                 <div className="av-admin-order-actions">
                   {next && <button className="av-admin-action primary" onClick={() => void setOrderStatus(order, next)}>
@@ -439,16 +492,20 @@ export default function AdminDashboard() {
 
                   {canCancelOrder(status) && <button className="av-admin-action danger" onClick={() => void setOrderStatus(order, "Cancelled")}>Cancel</button>}
 
-                  {order.phone && <a className="av-admin-action" href={"tel:" + order.phone}>Call</a>}
+                  <button className="av-admin-action privacy" type="button" onClick={() => toggleOrderPrivacy(order.id)}>
+                    {showPrivate ? "Hide private info" : "Show private info"}
+                  </button>
 
-                  {order.phone && /^01[3-9]\d{8}$/.test(order.phone) && <a
+                  {showPrivate && order.phone && <a className="av-admin-action" href={"tel:" + order.phone}>Call</a>}
+
+                  {showPrivate && order.phone && /^01[3-9]\d{8}$/.test(order.phone) && <a
                     className="av-admin-action"
                     href={"https://wa.me/88" + order.phone + "?text=" + encodeURIComponent("আসসালামু আলাইকুম, AVEN থেকে আপনার order " + order.id + " সম্পর্কে যোগাযোগ করছি।")}
                     target="_blank"
                     rel="noopener noreferrer"
                   >WhatsApp</a>}
 
-                  {order.address && <button className="av-admin-action" type="button" onClick={() => void copyText(order.address || "", "Address")}>Copy address</button>}
+                  {showPrivate && order.address && <button className="av-admin-action" type="button" onClick={() => void copyText(order.address || "", "Address")}>Copy address</button>}
                   <button className="av-admin-action" type="button" onClick={() => void copyText(order.id, "Order reference")}>Copy ID</button>
                 </div>
               </article>;
@@ -464,7 +521,7 @@ export default function AdminDashboard() {
           <div className="av-admin-settings-grid">
             <article>
               <span>ADMIN SESSION</span>
-              <strong>{auth.currentUser?.email || "Authenticated admin"}</strong>
+              <strong>{privacyMode ? maskEmail(auth.currentUser?.email || "admin@aven.store") : (auth.currentUser?.email || "Authenticated admin")}</strong>
               <p>Firebase Authentication দিয়ে protected session.</p>
             </article>
 
