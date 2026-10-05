@@ -41,6 +41,7 @@ export default function AdminProductEditor() {
   const [selectedId, setSelectedId] = useState("");
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out" | "untracked">("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -98,8 +99,9 @@ export default function AdminProductEditor() {
     const searchOkay = !search.trim() || text.includes(search.trim().toLocaleLowerCase("bn"));
     const state = productStockState(product);
     const stockOkay = stockFilter === "all" || state === stockFilter;
-    return searchOkay && stockOkay;
-  }), [products, search, stockFilter]);
+    const categoryOkay = categoryFilter === "all" || categoryName(categoryKeyForProduct(product)) === categoryFilter;
+    return searchOkay && stockOkay && categoryOkay;
+  }), [products, search, stockFilter, categoryFilter]);
 
   async function save() {
     if (!selectedId || saving) return;
@@ -217,12 +219,18 @@ export default function AdminProductEditor() {
         placeholder="Product, category বা color খুঁজুন…"
       />
 
-      <select className="av-admin-select av-admin-product-filter" value={stockFilter} onChange={(event) => setStockFilter(event.target.value as typeof stockFilter)}>
-        <option value="all">সব stock</option>
-        <option value="low">Low stock</option>
-        <option value="out">Out of stock</option>
-        <option value="untracked">Stock not tracked</option>
-      </select>
+      <div className="av-admin-product-filters">
+        <select className="av-admin-select av-admin-product-filter" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+          <option value="all">সব category</option>
+          {categoryOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
+        <select className="av-admin-select av-admin-product-filter" value={stockFilter} onChange={(event) => setStockFilter(event.target.value as typeof stockFilter)}>
+          <option value="all">সব stock</option>
+          <option value="low">Low stock</option>
+          <option value="out">Out of stock</option>
+          <option value="untracked">Stock not tracked</option>
+        </select>
+      </div>
 
       <div className="av-admin-editor-products">
         {loading ? <div className="av-admin-empty">Loading…</div> : filtered.length ? filtered.map((product) => {
