@@ -45,6 +45,8 @@ test('invalid image schemes have a local fallback', () => {
   for (const url of ['javascript:alert(1)', 'data:text/html,test', '//evil.example/a', 'http://example.com/a', null]) assert.equal(lib.safeImage(url), '/products/pink.png');
 });
 test('HTTPS uploaded images stay usable', () => assert.equal(lib.safeImage('https://firebasestorage.googleapis.com/test.png'), 'https://firebasestorage.googleapis.com/test.png'));
+test('Cloudinary product images are allowed', () => assert.equal(lib.safeImage('https://res.cloudinary.com/demo/image/upload/sample.jpg'), 'https://res.cloudinary.com/demo/image/upload/sample.jpg'));
+test('unknown HTTPS image hosts fall back locally', () => assert.equal(lib.safeImage('https://evil.example/product.jpg'), '/products/pink.png'));
 test('missing numeric product fields stay finite', () => { const p = lib.normalizeProduct('p', { price: 'bad', oldPrice: -4 }); assert.equal(p.price, 0); assert.equal(p.oldPrice, 0); });
 test('legacy product without createdAt stays valid', () => assert.equal(lib.normalizeProduct('p', baseProduct).createdAt, 0));
 test('duplicate and malformed colors are removed', () => {
