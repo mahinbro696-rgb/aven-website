@@ -21,6 +21,7 @@ import {
 import type { Product } from "@/lib/atelier";
 import ProductSection from "./ProductSection";
 import CategoryManager from "./CategoryManager";
+import AdminIcon from "./AdminIcon";
 
 type Tab = "overview" | "products" | "categories" | "orders" | "settings";
 type TimestampLike = { toDate?: () => Date; seconds?: number };
@@ -40,12 +41,12 @@ type Order = {
   createdAt?: TimestampLike;
 };
 
-const tabs: { id: Tab; label: string; icon: string }[] = [
-  { id: "overview", label: "Overview", icon: "⌂" },
-  { id: "products", label: "Products", icon: "◇" },
-  { id: "categories", label: "Categories", icon: "▦" },
-  { id: "orders", label: "Orders", icon: "▤" },
-  { id: "settings", label: "Settings", icon: "⚙" },
+const tabs: { id: Tab; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "products", label: "Products" },
+  { id: "categories", label: "Categories" },
+  { id: "orders", label: "Orders" },
+  { id: "settings", label: "Settings" },
 ];
 
 const nextStatusLabel: Partial<Record<OrderStatus, string>> = {
@@ -274,6 +275,7 @@ export default function AdminDashboard() {
           <span>STORE CONTROL CENTER</span>
         </Link>
 
+        <p className="av-admin-nav-label">WORKSPACE</p>
         <nav className="av-admin-nav" aria-label="Admin navigation">
           {tabs.map((item) => <button
             type="button"
@@ -282,14 +284,15 @@ export default function AdminDashboard() {
             onClick={() => changeTab(item.id)}
             aria-current={tab === item.id ? "page" : undefined}
           >
-            <b aria-hidden="true">{item.icon}</b>
-            {item.label}
+            <AdminIcon name={item.id} />
+            <span>{item.label}</span>
+            {item.id === "orders" && metrics.pending > 0 && <span className="av-admin-nav-count">{metrics.pending}</span>}
           </button>)}
         </nav>
 
         <div className="av-admin-side-foot">
           <strong>{privacyMode ? maskEmail(auth.currentUser?.email || "admin@aven.store") : (auth.currentUser?.email || "Authorized admin")}</strong>
-          <span>Firebase authenticated session</span>
+          <span><AdminIcon name="shield" /> Protected workspace</span>
         </div>
       </aside>
 
@@ -298,7 +301,7 @@ export default function AdminDashboard() {
           <div className="av-admin-topbar-left">
             <button type="button" className="av-admin-mobile-toggle" onClick={() => setMenuOpen(true)} aria-label="Admin menu খুলুন">☰</button>
             <div>
-              <p className="av-admin-kicker">AVEN / ADMINISTRATION</p>
+              <p className="av-admin-kicker">STORE WORKSPACE <span>/ {tabs.find((item) => item.id === tab)?.label}</span></p>
               <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
               <p>Products, categories, inventory এবং orders এক জায়গা থেকে manage করুন।</p>
             </div>
@@ -329,7 +332,12 @@ export default function AdminDashboard() {
           <button type="button" aria-label="Message বন্ধ করুন" onClick={() => setMessage("")}>×</button>
         </div>}
 
+        <div className="av-admin-tab-content" key={tab}>
         {tab === "overview" && <>
+          <section className="av-admin-welcome">
+            <div><p>YOUR STORE, AT A GLANCE</p><h2>Every detail. Under control.</h2><span>আপনার কালেকশন, অর্ডার ও স্টকের সব আপডেট এক নজরে।</span></div>
+            <button type="button" className="av-admin-action" onClick={() => changeTab("products")}>Manage collection <AdminIcon name="arrow" /></button>
+          </section>
           <section className="av-admin-metrics">
             <Metric label="Total orders" value={metrics.orders} />
             <Metric label="Pending" value={metrics.pending} />
@@ -555,6 +563,7 @@ export default function AdminDashboard() {
             <button type="button" className="av-admin-action danger" onClick={() => void signOut(auth)}>Sign out</button>
           </div>
         </section>}
+        </div>
       </main>
     </div>
   </div>;
@@ -562,7 +571,7 @@ export default function AdminDashboard() {
 
 function Metric({ label, value }: { label: string; value: number }) {
   return <article className="av-admin-metric">
-    <span>{label}</span>
+    <div className="av-admin-metric-top"><span>{label}</span><AdminIcon name={label === "Stock alerts" ? "products" : "orders"} /></div>
     <strong>{new Intl.NumberFormat("bn-BD").format(value)}</strong>
   </article>;
 }

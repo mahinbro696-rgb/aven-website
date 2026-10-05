@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import AdminIcon from "./AdminIcon";
 
 type State =
   | { status: "checking"; user: null }
@@ -76,8 +78,14 @@ export default function AdminAuthGate({ children }: { children: ReactNode }) {
   }
 
   if (state.status === "signed-out") {
-    return <main className="av-admin-login">
+    return <main className="av-admin-login av-admin-login-split">
+      <aside className="av-admin-login-story">
+        <Link href="/" className="av-admin-login-wordmark">AVEN<span>THE STORE WORKSPACE</span></Link>
+        <div className="av-admin-login-editorial"><p>A LITTLE MORE EFFORTLESS.</p><h2>Behind every<br />beautiful<br /><em>collection.</em></h2><span>আপনার স্টোর পরিচালনার প্রতিটি কাজ,<br />একটি সুন্দর ও সহজ জায়গায়।</span></div>
+        <div className="av-admin-login-story-foot"><AdminIcon name="shield" /><span>Private access. Complete control.</span></div>
+      </aside>
       <section className="av-admin-login-card">
+        <span className="av-admin-login-emblem"><AdminIcon name="shield" /></span>
         <p className="av-admin-login-kicker">AVEN / STORE CONTROL</p>
         <h1>Admin sign in</h1>
         <p>Products, categories এবং orders manage করতে authorized account দিয়ে sign in করুন।</p>
@@ -87,7 +95,8 @@ export default function AdminAuthGate({ children }: { children: ReactNode }) {
           <button type="submit" disabled={busy}>{busy ? "Signing in…" : "Sign in securely"}</button>
         </form>
         {message && <div className="av-admin-login-message" role="alert">{message}</div>}
-        <small>Admin password বা Firebase credential এই website code-এ রাখা হয় না।</small>
+        <small>শুধুমাত্র অনুমোদিত অ্যাডমিনের জন্য সুরক্ষিত প্রবেশ।</small>
+        <Link className="av-admin-login-back" href="/">Storefront-এ ফিরে যান ↗</Link>
       </section>
     </main>;
   }
