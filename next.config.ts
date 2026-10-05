@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "firebasestorage.googleapis.com", pathname: "/v0/b/aven-ba684.firebasestorage.app/o/**" },
       { protocol: "https", hostname: "storage.googleapis.com", pathname: "/aven-ba684.firebasestorage.app/**" },
+      { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
     ],
   },
 };
