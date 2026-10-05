@@ -22,6 +22,7 @@ import type { Product } from "@/lib/atelier";
 import ProductSection from "./ProductSection";
 import CategoryManager from "./CategoryManager";
 import AdminIcon from "./AdminIcon";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 type Tab = "overview" | "products" | "categories" | "orders" | "settings";
 type TimestampLike = { toDate?: () => Date; seconds?: number };
@@ -92,6 +93,7 @@ function parseProduct(id: string, raw: Record<string, any>): Product {
 }
 
 export default function AdminDashboard() {
+  const reducedMotion = useReducedMotion();
   const [tab, setTab] = useState<Tab>("overview");
   const [menuOpen, setMenuOpen] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -284,6 +286,7 @@ export default function AdminDashboard() {
             onClick={() => changeTab(item.id)}
             aria-current={tab === item.id ? "page" : undefined}
           >
+            {tab === item.id && <motion.i className="av-admin-nav-highlight" layoutId="admin-nav-highlight" transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 320, damping: 30 }} />}
             <AdminIcon name={item.id} />
             <span>{item.label}</span>
             {item.id === "orders" && metrics.pending > 0 && <span className="av-admin-nav-count">{metrics.pending}</span>}
@@ -332,7 +335,8 @@ export default function AdminDashboard() {
           <button type="button" aria-label="Message বন্ধ করুন" onClick={() => setMessage("")}>×</button>
         </div>}
 
-        <div className="av-admin-tab-content" key={tab}>
+        <AnimatePresence mode="wait" initial={false}>
+        <motion.div className="av-admin-tab-content" key={tab} initial={reducedMotion ? false : { opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={reducedMotion ? undefined : { opacity: 0, y: -12 }} transition={{ duration: reducedMotion ? 0 : .35 }}>
         {tab === "overview" && <>
           <section className="av-admin-welcome">
             <div><p>YOUR STORE, AT A GLANCE</p><h2>Every detail. Under control.</h2><span>আপনার কালেকশন, অর্ডার ও স্টকের সব আপডেট এক নজরে।</span></div>
@@ -563,7 +567,8 @@ export default function AdminDashboard() {
             <button type="button" className="av-admin-action danger" onClick={() => void signOut(auth)}>Sign out</button>
           </div>
         </section>}
-        </div>
+        </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   </div>;

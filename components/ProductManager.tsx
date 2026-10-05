@@ -2,6 +2,8 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import AdminIcon from "@/components/admin/AdminIcon";
 import { collection, deleteField, doc, getDocFromServer, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { SHOWROOM } from "@/lib/showroom";
@@ -38,6 +40,7 @@ async function timeout<T>(promise: Promise<T>): Promise<T> {
 
 export default function ProductManager() {
   const categoryOptions = useCategoryOptions();
+  const reducedMotion = useReducedMotion();
   const [form, setForm] = useState(initial);
   const [selectedId, setSelectedId] = useState(SHOWROOM[0].id);
   const [imageUrl, setImageUrl] = useState(SHOWROOM[0].mainImage);
@@ -201,118 +204,64 @@ export default function ProductManager() {
 
   const preview = isAllowedProductImage(imageUrl.trim()) ? safeImage(imageUrl.trim()) : "";
 
-  return <form onSubmit={(event) => void publish(event)} className="av-admin-product">
-    <div className="av-admin-editor-note">
-      <strong>Image mode: URL / existing AVEN image</strong>
-      <span>Firebase Storage এখন ব্যবহার করা হচ্ছে না। পরে Cloudinary connect করলে এখানে Cloudinary image URL paste করলেই কাজ করবে।</span>
+  const detailsReady = Boolean(form.name.trim() && form.category.trim() && Number(form.price) > 0);
+  const checks = [Boolean(preview), detailsReady, variants.every((v) => Boolean(v.name.trim()))];
+  const completed = checks.filter(Boolean).length;
+  const money = (value: string) => new Intl.NumberFormat("bn-BD", { maximumFractionDigits: 2 }).format(Number(value) || 0);
+  const entrance = reducedMotion ? {} : { initial: { opacity: 0, y: 22 }, animate: { opacity: 1, y: 0 }, transition: { duration: .55 } };
+
+  return <motion.form {...entrance} onSubmit={(event) => void publish(event)} className="av-admin-product av-create">
+    <header className="av-create-intro">
+      <div><span className="av-create-eyebrow">COLLECTION STUDIO</span><h2>নতুন পণ্য সাজান</h2><p>ছবি, দাম ও রঙ যোগ করুন। পাশে দেখুন আপনার পণ্য কেমন দেখাবে।</p></div>
+      <span className="av-create-draft"><i /> {success ? "Published" : "Product setup"}</span>
+    </header>
+    <div className="av-create-progress" aria-label="Product setup progress">
+      {["পণ্যের ছবি", "তথ্য ও দাম", "রঙ ও স্টক"].map((label, index) => <div key={label} className={checks[index] ? "is-complete" : ""}><b>{checks[index] ? "✓" : "0" + (index + 1)}</b><span>{label}</span></div>)}
+      <div className="av-create-progress-track"><motion.span animate={{ width: (completed / 3 * 100) + "%" }} transition={{ duration: reducedMotion ? 0 : .6 }} /></div>
     </div>
-
-    <h2>পণ্য প্রকাশ করুন</h2>
-    <p>Category, price, color এবং stock দিয়ে product publish করুন। Image upload service ছাড়াও built-in image বা trusted image URL ব্যবহার করা যাবে।</p>
-
-    <fieldset disabled={busy}>
-      <legend>১. Main image</legend>
-
-      <div className="av-admin-seeds">
-        {SHOWROOM.map((product) => <button
-          type="button"
-          key={product.id}
-          className={selectedId === product.id ? "is-active" : ""}
-          onClick={() => choose(product.id)}
-          aria-pressed={selectedId === product.id}
-        >
-          <Image src={product.mainImage} alt={product.name} width={180} height={200} />
-          <span>{product.colors[0].name}</span>
-        </button>)}
-      </div>
-
-      <button type="button" className="av-admin-secondary" onClick={() => choose("")}>
-        + নতুন product
-      </button>
-
-      <label>
-        Main image URL / AVEN path
-        <input
-          value={imageUrl}
-          onChange={(event) => setImageUrl(event.target.value)}
-          placeholder="/products/pink.png অথবা https://res.cloudinary.com/..."
-          spellCheck={false}
-          required
-        />
-      </label>
-
-      {preview && <div className="av-admin-url-preview">
-        <Image src={preview} alt="Product preview" width={230} height={260} />
-        <span>Image preview</span>
-      </div>}
-
-      <legend>২. পণ্যের তথ্য ও দাম</legend>
-
-      <label>
-        পণ্যের নাম
-        <input required value={form.name} maxLength={150} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-      </label>
-
-      <label>
-        ক্যাটাগরি
-        <select required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>
-          {categoryOptions.map((name) => <option key={name} value={name}>{name}</option>)}
-        </select>
-      </label>
-
-      <div className="av-admin-prices">
-        <label>
-          বিক্রয়মূল্য (টাকা)
-          <input type="number" min="0.01" max="1000000" step="0.01" required value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} placeholder="যেমন 1190" />
-        </label>
-        <label>
-          আগের মূল্য (ঐচ্ছিক)
-          <input type="number" min="0" max="1000000" step="0.01" value={form.oldPrice} onChange={(event) => setForm({ ...form, oldPrice: event.target.value })} placeholder="যেমন 2500" />
-        </label>
-      </div>
-
-      <label>
-        বিবরণ
-        <textarea rows={5} maxLength={3000} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="কাপড়, design, মাপ, care instruction ইত্যাদি" />
-      </label>
-
-      <legend>৩. Color & stock</legend>
-
-      {variants.map((variant) => <div className="av-admin-variant" key={variant.key}>
-        <label>
-          রঙের নাম
-          <input value={variant.name} maxLength={100} onChange={(event) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, name: event.target.value } : item))} required />
-        </label>
-        <label>
-          Stock (ঐচ্ছিক)
-          <input type="number" min="0" max="99999" step="1" value={variant.stock} placeholder="খালি = stock track নয়" onChange={(event) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, stock: event.target.value } : item))} />
-        </label>
-        <label>
-          Color image URL (ঐচ্ছিক)
-          <input value={variant.url} onChange={(event) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, url: event.target.value } : item))} placeholder="খালি রাখলে main image ব্যবহার হবে" spellCheck={false} />
-        </label>
-        <button type="button" className="av-admin-secondary" onClick={() => setVariants((all) => all.filter((item) => item.key !== variant.key))}>
-          রঙটি সরান
-        </button>
-      </div>)}
-
-      <button type="button" className="av-admin-secondary" onClick={() => setVariants((all) => [...all, {
-        key: crypto.randomUUID(),
-        name: "",
-        url: "",
-        stock: "",
-      }])}>
-        + আরেকটি রঙ
-      </button>
-
-      <button type="submit" className="av-admin-publish">
-        {busy ? "সংরক্ষণ হচ্ছে…" : "Publish Product"}
-      </button>
-    </fieldset>
-
-    {message && <div role={success ? "status" : "alert"} className={"av-admin-message " + (success ? "is-success" : "")}>
-      <p>{message}</p>
-      {success && <a href={"/product/" + encodeURIComponent(stableId.current)} target="_blank" rel="noopener noreferrer">Published product দেখুন →</a>}
-    </div>}
-  </form>;
+    <div className="av-create-layout">
+      <fieldset disabled={busy} className="av-create-fields">
+        <legend className="av-create-sr">পণ্যের তথ্য</legend>
+        <section className="av-create-section">
+          <div className="av-create-section-head"><span>01</span><div><h3>পণ্যের ছবি</h3><p>প্রধান ছবি নির্বাচন করুন অথবা ছবির লিংক দিন।</p></div><AdminIcon name="products" /></div>
+          <div className="av-create-image-tools">
+            <label>Main image URL / AVEN path<input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="/products/pink.png অথবা trusted image URL" spellCheck={false} required /></label>
+            <small>AVEN-এর ছবি, Firebase অথবা Cloudinary image link ব্যবহার করুন।</small>
+          </div>
+          <p className="av-create-label">বর্তমান কালেকশন থেকে শুরু করুন</p>
+          <div className="av-create-seeds">
+            {SHOWROOM.map((product) => <motion.button whileHover={reducedMotion ? undefined : { y: -5 }} whileTap={reducedMotion ? undefined : { scale: .97 }} type="button" key={product.id} className={selectedId === product.id ? "is-active" : ""} onClick={() => choose(product.id)} aria-pressed={selectedId === product.id}><Image src={product.mainImage} alt={product.name} width={110} height={125} /><span>{product.colors[0].name}</span>{selectedId === product.id && <b>✓</b>}</motion.button>)}
+          </div>
+          <button type="button" className="av-admin-action" onClick={() => choose("")}>＋ একদম নতুন পণ্য দিয়ে শুরু করুন</button>
+        </section>
+        <section className="av-create-section">
+          <div className="av-create-section-head"><span>02</span><div><h3>পণ্যের তথ্য ও দাম</h3><p>সঠিক নাম ও দাম দিয়ে আপনার কালেকশন সাজান।</p></div><AdminIcon name="categories" /></div>
+          <label>পণ্যের নাম<input required value={form.name} maxLength={150} placeholder="যেমন: প্রিমিয়াম জামদানি চাদর" onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
+          <label>ক্যাটাগরি<select required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>{categoryOptions.map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
+          <div className="av-admin-prices"><label>বিক্রয়মূল্য (টাকা)<input type="number" min="0.01" max="1000000" step="0.01" required value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} placeholder="1190" /></label><label>আগের মূল্য (ঐচ্ছিক)<input type="number" min="0" max="1000000" step="0.01" value={form.oldPrice} onChange={(event) => setForm({ ...form, oldPrice: event.target.value })} placeholder="2500" /></label></div>
+          <label>বিবরণ<textarea rows={4} maxLength={3000} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="কাপড়, ডিজাইন, মাপ ও যত্নের নির্দেশনা লিখুন…" /></label>
+        </section>
+        <section className="av-create-section">
+          <div className="av-create-section-head"><span>03</span><div><h3>রঙ ও স্টক</h3><p>প্রতিটি রঙের ছবি ও স্টক আলাদা করে রাখুন।</p></div><span className="av-create-count">{variants.length} রঙ</span></div>
+          <AnimatePresence initial={false}>
+            {variants.map((variant, index) => <motion.div layout={!reducedMotion} initial={reducedMotion ? false : { opacity: 0, y: 20, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={reducedMotion ? undefined : { opacity: 0, scale: .95 }} transition={{ duration: reducedMotion ? 0 : .3 }} className="av-create-variant" key={variant.key}>
+              <div className="av-create-variant-head"><strong>Color variant {String(index + 1).padStart(2, "0")}</strong><button type="button" aria-label={"রঙ " + (index + 1) + " সরান"} onClick={() => setVariants((all) => all.filter((item) => item.key !== variant.key))}>সরান ×</button></div>
+              <div className="av-admin-prices"><label>রঙের নাম<input value={variant.name} maxLength={100} onChange={(event) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, name: event.target.value } : item))} required placeholder="যেমন: গোলাপি" /></label><label>Stock (ঐচ্ছিক)<input type="number" min="0" max="99999" step="1" value={variant.stock} placeholder="খালি = স্টক ট্র্যাক নয়" onChange={(event) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, stock: event.target.value } : item))} /></label></div>
+              <label>Color image URL (ঐচ্ছিক)<input value={variant.url} onChange={(event) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, url: event.target.value } : item))} placeholder="খালি রাখলে প্রধান ছবি ব্যবহার হবে" spellCheck={false} /></label>
+            </motion.div>)}
+          </AnimatePresence>
+          {!variants.length && <p className="av-create-hint">রঙের অপশন থাকলে নিচের বাটন থেকে যোগ করুন।</p>}
+          <motion.button whileTap={reducedMotion ? undefined : { scale: .97 }} type="button" className="av-create-add-color" onClick={() => setVariants((all) => [...all, { key: crypto.randomUUID(), name: "", url: "", stock: "" }])}>＋ আরেকটি রঙ যোগ করুন</motion.button>
+        </section>
+        <div className="av-create-savebar"><div><strong>{success ? "পণ্য প্রকাশিত হয়েছে" : "প্রকাশ করার জন্য প্রস্তুত?"}</strong><small>Publish করলে পণ্যটি আপনার স্টোরে দেখা যাবে।</small></div><motion.button whileHover={reducedMotion || busy ? undefined : { y: -3 }} whileTap={reducedMotion || busy ? undefined : { scale: .97 }} type="submit" className="av-admin-publish">{busy ? <><span className="av-create-spinner" /> সংরক্ষণ হচ্ছে…</> : <>Publish Product <AdminIcon name="arrow" /></>}</motion.button></div>
+      </fieldset>
+      <aside className="av-create-preview">
+        <div className="av-create-preview-head"><span>LIVE PREVIEW</span><i /> <small>আপনার পরিবর্তনের সঙ্গে আপডেট হয়</small></div>
+        <div className="av-create-preview-image"><AnimatePresence mode="wait" initial={false}>{preview ? <motion.div key={preview} initial={reducedMotion ? false : { opacity: 0, scale: 1.06 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0 : .35 }}><Image src={preview} alt="Product preview" fill sizes="(max-width: 760px) 90vw, 350px" /></motion.div> : <div className="av-create-placeholder"><AdminIcon name="products" /><span>পণ্যের ছবি যোগ করুন</span></div>}</AnimatePresence>{Number(form.oldPrice) > Number(form.price) && Number(form.price) > 0 && <span className="av-create-discount">{Math.round((1 - Number(form.price) / Number(form.oldPrice)) * 100)}% OFF</span>}</div>
+        <div className="av-create-preview-details"><span>{form.category || "আপনার ক্যাটাগরি"}</span><h3>{form.name || "আপনার পণ্যের নাম"}</h3><div className="av-create-preview-price"><strong>৳ {money(form.price)}</strong>{Number(form.oldPrice) > Number(form.price) && <del>৳ {money(form.oldPrice)}</del>}</div><div className="av-create-color-chips">{variants.filter((v) => v.name.trim()).map((v) => <span key={v.key}>{v.name}</span>)}</div><p>{form.description || "পণ্যের বিবরণ এখানে দেখা যাবে।"}</p></div>
+        <div className="av-create-preview-note"><AdminIcon name="shield" /><span>এটি একটি প্রিভিউ। Publish Product চাপার পর পণ্যটি স্টোরে প্রকাশিত হবে।</span></div>
+      </aside>
+    </div>
+    <AnimatePresence>{message && <motion.div initial={reducedMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} role={success ? "status" : "alert"} className={"av-admin-message " + (success ? "is-success" : "")}><p>{message}</p>{success && <a href={"/product/" + encodeURIComponent(selectedId)} target="_blank" rel="noopener noreferrer">Published product দেখুন →</a>}</motion.div>}</AnimatePresence>
+  </motion.form>;
 }
