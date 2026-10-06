@@ -22,6 +22,7 @@ import type { Product } from "@/lib/atelier";
 import ProductSection from "./ProductSection";
 import CategoryManager from "./CategoryManager";
 import AdminIcon from "./AdminIcon";
+import CloudinarySettings from "./CloudinarySettings";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 type Tab = "overview" | "products" | "categories" | "orders" | "settings";
@@ -530,6 +531,7 @@ export default function AdminDashboard() {
             <div><h2>Settings & security</h2><p>বর্তমান AVEN admin configuration</p></div>
           </div>
 
+          <CloudinarySettings />
           <div className="av-admin-settings-grid">
             <article>
               <span>ADMIN SESSION</span>
@@ -546,7 +548,7 @@ export default function AdminDashboard() {
             <article>
               <span>PRODUCT IMAGES</span>
               <strong>URL mode</strong>
-              <p>বর্তমানে built-in AVEN path / Firebase URL / Cloudinary URL support করা হচ্ছে। Direct file upload পরে Cloudinary connect করলে যোগ হবে।</p>
+              <p>AVEN path / Firebase URL / Cloudinary URL support আছে। উপরের section থেকে Cloudinary account manage করুন। Product file upload পরের ধাপে যোগ হবে।</p>
             </article>
 
             <article>
