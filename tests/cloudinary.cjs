@@ -20,6 +20,9 @@ function load(filename) {
 const api = load(path.join(root, 'lib/admin-api.ts'));
 const integration = load(path.join(root, 'lib/cloudinary-integration.ts'));
 const route = load(path.join(root, 'app/api/admin/cloudinary/route.ts'));
+const imageRoute = load(path.join(root, 'app/api/admin/images/route.ts'));
+const imageApi = load(path.join(root, 'lib/product-image-upload.ts'));
+let uploadMode = 'success', uploadCalls = 0;
 const originalFetch = global.fetch;
 const originalKey = process.env.CLOUDINARY_INTEGRATION_KEY;
 const master = 'a1'.repeat(32);
@@ -46,6 +49,17 @@ global.fetch = async (url, options = {}) => {
     assert.equal(options.redirect, 'error');
     if (cloudTimeout) throw new Error('secret-bearing provider error: ' + secret);
     return Response.json(cloudOkay ? { status: 'ok' } : { error: { message: secret } }, { status: cloudOkay ? 200 : 401 });
+  }
+  if (url === 'https://api.cloudinary.com/v1_1/pcprovqw/image/upload') {
+    uploadCalls++;
+    assert.equal(options.headers.Authorization, 'Basic ' + Buffer.from(creds.apiKey + ':' + secret).toString('base64'));
+    assert.equal(options.redirect, 'error');
+    assert.match(options.body.get('public_id'), /^aven\/products\/[0-9a-f-]{36}$/);
+    assert.equal(options.body.get('overwrite'), 'false');
+    assert.equal(options.body.get('file').type, 'image/png');
+    if (uploadMode === 'denied') return Response.json({ error: { message: secret } }, { status: 403 });
+    if (uploadMode === 'network') throw new Error(secret);
+    return Response.json({ secure_url: uploadMode === 'badurl' ? 'https://evil.example/file.svg' : 'https://res.cloudinary.com/pcprovqw/image/upload/v123/aven/products/test.png', resource_type: 'image', width: 100, height: 150 });
   }
   throw new Error('Unexpected endpoint: ' + url);
 };
@@ -108,6 +122,22 @@ global.fetch = async (url, options = {}) => {
   cloudTimeout = false; cloudOkay = true;
   response = await route.POST(request({ action: 'reconnect' }));
   assert.equal((await response.json()).status.state, 'connected');
+  const png = new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0]);
+  const uploadRequest = (body = png, type = 'image/png', headers = {}) => new Request('https://aven.example/api/admin/images', { method: 'POST', headers: { authorization: 'Bearer ' + token(), origin: 'https://aven.example', 'content-type': type, ...headers }, body });
+  response = await imageRoute.POST(new Request('https://aven.example/api/admin/images', { method: 'POST', body: png }));
+  assert.equal(response.status, 401); assert.equal(uploadCalls, 0);
+  response = await imageRoute.POST(uploadRequest(png, 'image/png', { origin: 'https://evil.example' })); assert.equal(response.status, 403);
+  response = await imageRoute.POST(uploadRequest(png, 'image/svg+xml')); assert.equal(response.status, 415);
+  response = await imageRoute.POST(uploadRequest(png, 'image/jpeg')); assert.equal(response.status, 400);
+  response = await imageRoute.POST(uploadRequest(new Uint8Array(imageApi.MAX_UPLOAD_BYTES + 1))); assert.equal(response.status, 413);
+  assert.equal(uploadCalls, 0, 'Invalid uploads must never reach Cloudinary');
+  response = await imageRoute.POST(uploadRequest()); assert.equal(response.status, 200);
+  const uploaded = await response.json(); assert.match(uploaded.url, /^https:\/\/res.cloudinary.com\/pcprovqw\/image\/upload\//);
+  assert.ok(!JSON.stringify(uploaded).includes(secret)); assert.match(response.headers.get('cache-control'), /no-store/);
+  uploadMode = 'denied'; response = await imageRoute.POST(uploadRequest()); assert.equal(response.status, 409); assert.ok(!(await response.text()).includes(secret));
+  uploadMode = 'badurl'; response = await imageRoute.POST(uploadRequest()); assert.equal(response.status, 502);
+  uploadMode = 'network'; response = await imageRoute.POST(uploadRequest()); assert.equal(response.status, 502); assert.ok(!(await response.text()).includes(secret));
+  uploadMode = 'success';
   process.env.CLOUDINARY_INTEGRATION_KEY = 'b2'.repeat(32);
   assert.equal((await integration.cloudinaryStatus(context)).state, 'error');
   delete process.env.CLOUDINARY_INTEGRATION_KEY;
@@ -117,6 +147,9 @@ global.fetch = async (url, options = {}) => {
   assert.equal(response.status, 200); assert.equal(stored, null);
   response = await route.POST(request({ action: 'verify', ...creds }));
   assert.equal(response.status, 503); assert.equal((await response.json()).error, 'SETUP_REQUIRED');
+  process.env.CLOUDINARY_INTEGRATION_KEY = master;
+  response = await imageRoute.POST(uploadRequest()); assert.equal(response.status, 409);
+  console.log('PASS private image uploads: authorization, MIME signatures, streaming size limits, safe URLs, provider errors, disconnect and secret redaction');
   console.log('PASS Cloudinary admin authorization, CSRF, body limits, real verification, encrypted storage, receipt binding/expiry, red status, reconnect, disconnect and secret redaction');
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => {
   global.fetch = originalFetch;

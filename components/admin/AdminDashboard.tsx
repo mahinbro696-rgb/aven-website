@@ -8,6 +8,7 @@ import { auth, db } from "@/lib/firebase";
 import { productCategories, productsInCategory } from "@/lib/shop-categories";
 import {
   canCancelOrder,
+  csvCell,
   maskEmail,
   maskPersonalText,
   maskPhone,
@@ -23,6 +24,7 @@ import ProductSection from "./ProductSection";
 import CategoryManager from "./CategoryManager";
 import AdminIcon from "./AdminIcon";
 import CloudinarySettings from "./CloudinarySettings";
+import { canLeaveAdminDraft } from "./useProductUploads";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 type Tab = "overview" | "products" | "categories" | "orders" | "settings";
@@ -207,6 +209,7 @@ export default function AdminDashboard() {
   }
 
   function changeTab(next: Tab) {
+    if (next !== tab && !canLeaveAdminDraft()) return;
     setTab(next);
     setMenuOpen(false);
   }
@@ -254,7 +257,7 @@ export default function AdminDashboard() {
     ];
 
     const csv = rows
-      .map((row) => row.map((value) => '"' + String(value).replaceAll('"', '""') + '"').join(","))
+      .map((row) => row.map(csvCell).join(","))
       .join("\n");
 
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
@@ -327,7 +330,7 @@ export default function AdminDashboard() {
           <span><i className="is-good" /> Admin login active</span>
           <span><i className="is-good" /> Firestore admin access</span>
           <span><i className={privacyMode ? "is-good" : "is-note"} /> {privacyMode ? "Private data masked" : "Private data visible"}</span>
-          <span><i className="is-note" /> Images: URL mode</span>
+          <span><i className="is-note" /> Product images: Cloudinary / URL</span>
         </div>
 
         {message && <div className="av-admin-notice" role="status">
@@ -547,8 +550,8 @@ export default function AdminDashboard() {
 
             <article>
               <span>PRODUCT IMAGES</span>
-              <strong>URL mode</strong>
-              <p>AVEN path / Firebase URL / Cloudinary URL support আছে। উপরের section থেকে Cloudinary account manage করুন। Product file upload পরের ধাপে যোগ হবে।</p>
+              <strong>Cloudinary image upload</strong>
+              <p>Add/Edit Product থেকে প্রধান ছবি ও প্রতিটি রঙের ছবি upload করুন। ছবি প্রস্তুত ও ছোট করে Cloudinary-তে রাখা হয়; Save/Publish করলে স্টোরে যুক্ত হবে। URL-ও ব্যবহার করতে পারেন।</p>
             </article>
 
             <article>

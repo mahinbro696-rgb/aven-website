@@ -108,7 +108,7 @@ export default function CategoryManager({ products }: { products: Product[] }) {
       await setDoc(doc(db, "categories", id), {
         name: nextName,
         description: description.trim(),
-        position: FEATURED_SHOP_CATEGORIES.length + records.length,
+        position: Math.max(FEATURED_SHOP_CATEGORIES.length - 1, ...records.map((item) => item.position)) + 1,
         published: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),

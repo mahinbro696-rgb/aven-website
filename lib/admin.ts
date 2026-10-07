@@ -5,6 +5,12 @@ export type OrderStatus = typeof ORDER_STATUSES[number];
 
 export const LOW_STOCK_THRESHOLD = 5;
 
+export function csvCell(value: unknown): string {
+  const text = String(value ?? "");
+  const safe = /^[\t\r\n]/.test(text) || /^\s*[=+\-@]/.test(text) ? "'" + text : text;
+  return '"' + safe.replaceAll('"', '""') + '"';
+}
+
 export function normalizeOrderStatus(value: unknown): OrderStatus {
   return ORDER_STATUSES.includes(value as OrderStatus) ? value as OrderStatus : "Pending";
 }

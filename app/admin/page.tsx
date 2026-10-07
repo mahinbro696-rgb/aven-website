@@ -4,6 +4,7 @@ import "./admin.css";
 import "./studio.css";
 import "./product-studio.css";
 import "./cloudinary.css";
+import "./image-upload.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Secure admin", robots: { index: false, follow: false, nocache: true } };

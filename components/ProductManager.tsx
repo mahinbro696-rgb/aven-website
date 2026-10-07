@@ -9,6 +9,8 @@ import { db } from "@/lib/firebase";
 import { SHOWROOM } from "@/lib/showroom";
 import { isAllowedProductImage, safeImage } from "@/lib/atelier";
 import { useCategoryOptions } from "@/components/admin/useCategoryOptions";
+import ProductImageUpload from "@/components/admin/ProductImageUpload";
+import { useAdminDraftGuard, useProductUploads } from "@/components/admin/useProductUploads";
 
 type Variant = { key: string; name: string; url: string; stock: string };
 
@@ -57,9 +59,14 @@ export default function ProductManager() {
   const [success, setSuccess] = useState(false);
   const stableId = useRef("");
   const lock = useRef(false);
+  const uploads = useProductUploads();
+  const snapshot = JSON.stringify({ form, imageUrl, variants });
+  const [savedSnapshot, setSavedSnapshot] = useState(snapshot);
+  useAdminDraftGuard(snapshot !== savedSnapshot, busy || uploads.uploading);
 
   function choose(id: string) {
-    if (busy) return;
+    if (busy || uploads.pending.current.size) return;
+    if (snapshot !== savedSnapshot && !window.confirm("বর্তমান পরিবর্তন বাদ দিয়ে এই product দিয়ে শুরু করবেন?")) return;
     const seed = SHOWROOM.find((product) => product.id === id);
     setSelectedId(id);
     stableId.current = id;
@@ -86,7 +93,7 @@ export default function ProductManager() {
 
   async function publish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (lock.current) return;
+    if (lock.current || uploads.pending.current.size) return;
 
     setSuccess(false);
     setMessage("");
@@ -187,6 +194,7 @@ export default function ProductManager() {
         // Cross-tab refresh is an enhancement only.
       }
       setSuccess(true);
+      setSavedSnapshot(snapshot);
       setMessage("Product publish হয়েছে। Storefront preview থেকে price, image, Buy Now এবং stock দেখে নিন।");
     } catch (error) {
       setMessage(
@@ -225,8 +233,9 @@ export default function ProductManager() {
         <section className="av-create-section">
           <div className="av-create-section-head"><span>01</span><div><h3>পণ্যের ছবি</h3><p>প্রধান ছবি নির্বাচন করুন অথবা ছবির লিংক দিন।</p></div><AdminIcon name="products" /></div>
           <div className="av-create-image-tools">
+            <ProductImageUpload label="প্রধান পণ্যের ছবি" disabled={busy} onUploaded={setImageUrl} onBusy={(uploading) => uploads.track("main", uploading)} />
             <label>Main image URL / AVEN path<input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="/products/pink.png অথবা trusted image URL" spellCheck={false} required /></label>
-            <small>AVEN-এর ছবি, Firebase অথবা Cloudinary image link ব্যবহার করুন।</small>
+            <small>Upload করলে লিংক নিজে বসে যাবে। চাইলে AVEN, Firebase অথবা Cloudinary link-ও দিতে পারেন।</small>
           </div>
           <p className="av-create-label">বর্তমান কালেকশন থেকে শুরু করুন</p>
           <div className="av-create-seeds">
@@ -245,15 +254,16 @@ export default function ProductManager() {
           <div className="av-create-section-head"><span>03</span><div><h3>রঙ ও স্টক</h3><p>প্রতিটি রঙের ছবি ও স্টক আলাদা করে রাখুন।</p></div><span className="av-create-count">{variants.length} রঙ</span></div>
           <AnimatePresence initial={false}>
             {variants.map((variant, index) => <motion.div layout={!reducedMotion} initial={reducedMotion ? false : { opacity: 0, y: 20, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={reducedMotion ? undefined : { opacity: 0, scale: .95 }} transition={{ duration: reducedMotion ? 0 : .3 }} className="av-create-variant" key={variant.key}>
-              <div className="av-create-variant-head"><strong>Color variant {String(index + 1).padStart(2, "0")}</strong><button type="button" aria-label={"রঙ " + (index + 1) + " সরান"} onClick={() => setVariants((all) => all.filter((item) => item.key !== variant.key))}>সরান ×</button></div>
+              <div className="av-create-variant-head"><strong>Color variant {String(index + 1).padStart(2, "0")}</strong><button type="button" disabled={uploads.uploading} aria-label={"রঙ " + (index + 1) + " সরান"} onClick={() => setVariants((all) => all.filter((item) => item.key !== variant.key))}>সরান ×</button></div>
               <div className="av-admin-prices"><label>রঙের নাম<input value={variant.name} maxLength={100} onChange={(event) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, name: event.target.value } : item))} required placeholder="যেমন: গোলাপি" /></label><label>Stock (ঐচ্ছিক)<input type="number" min="0" max="99999" step="1" value={variant.stock} placeholder="খালি = স্টক ট্র্যাক নয়" onChange={(event) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, stock: event.target.value } : item))} /></label></div>
               <label>Color image URL (ঐচ্ছিক)<input value={variant.url} onChange={(event) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, url: event.target.value } : item))} placeholder="খালি রাখলে প্রধান ছবি ব্যবহার হবে" spellCheck={false} /></label>
+              <ProductImageUpload label={"রঙ " + (index + 1) + "-এর ছবি"} disabled={busy} onUploaded={(url) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, url } : item))} onBusy={(uploading) => uploads.track(variant.key, uploading)} />
             </motion.div>)}
           </AnimatePresence>
           {!variants.length && <p className="av-create-hint">রঙের অপশন থাকলে নিচের বাটন থেকে যোগ করুন।</p>}
           <motion.button whileTap={reducedMotion ? undefined : { scale: .97 }} type="button" className="av-create-add-color" onClick={() => setVariants((all) => [...all, { key: crypto.randomUUID(), name: "", url: "", stock: "" }])}>＋ আরেকটি রঙ যোগ করুন</motion.button>
         </section>
-        <div className="av-create-savebar"><div><strong>{success ? "পণ্য প্রকাশিত হয়েছে" : "প্রকাশ করার জন্য প্রস্তুত?"}</strong><small>Publish করলে পণ্যটি আপনার স্টোরে দেখা যাবে।</small></div><motion.button whileHover={reducedMotion || busy ? undefined : { y: -3 }} whileTap={reducedMotion || busy ? undefined : { scale: .97 }} type="submit" className="av-admin-publish">{busy ? <><span className="av-create-spinner" /> সংরক্ষণ হচ্ছে…</> : <>Publish Product <AdminIcon name="arrow" /></>}</motion.button></div>
+        <div className="av-create-savebar"><div><strong>{success ? "পণ্য প্রকাশিত হয়েছে" : "প্রকাশ করার জন্য প্রস্তুত?"}</strong><small>{uploads.uploading ? "ছবি upload শেষ হলে Publish করুন।" : "Publish করলে পণ্যটি আপনার স্টোরে দেখা যাবে।"}</small></div><motion.button disabled={uploads.uploading} whileHover={reducedMotion || busy || uploads.uploading ? undefined : { y: -3 }} whileTap={reducedMotion || busy || uploads.uploading ? undefined : { scale: .97 }} type="submit" className="av-admin-publish">{busy ? <><span className="av-create-spinner" /> সংরক্ষণ হচ্ছে…</> : <>Publish Product <AdminIcon name="arrow" /></>}</motion.button></div>
       </fieldset>
       <aside className="av-create-preview">
         <div className="av-create-preview-head"><span>LIVE PREVIEW</span><i /> <small>আপনার পরিবর্তনের সঙ্গে আপডেট হয়</small></div>

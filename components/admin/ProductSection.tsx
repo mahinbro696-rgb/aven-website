@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import ProductManager from "@/components/ProductManager";
 import AdminProductEditor from "./AdminProductEditor";
+import { canLeaveAdminDraft } from "./useProductUploads";
 
 export default function ProductSection() {
   const [mode, setMode] = useState<"add" | "edit">("edit");
@@ -13,8 +14,8 @@ export default function ProductSection() {
     <div className="av-admin-panel-head">
       <div><h2>Product management</h2><p>নতুন product publish করুন অথবা existing product edit করুন।</p></div>
       <div className="av-admin-segmented">
-        <button type="button" className={mode === "edit" ? "is-active" : ""} onClick={() => setMode("edit")}>Edit products</button>
-        <button type="button" className={mode === "add" ? "is-active" : ""} onClick={() => setMode("add")}>+ Add product</button>
+        <button type="button" className={mode === "edit" ? "is-active" : ""} onClick={() => { if (mode !== "edit" && canLeaveAdminDraft()) setMode("edit"); }}>Edit products</button>
+        <button type="button" className={mode === "add" ? "is-active" : ""} onClick={() => { if (mode !== "add" && canLeaveAdminDraft()) setMode("add"); }}>+ Add product</button>
       </div>
     </div>
     <AnimatePresence mode="wait" initial={false}>

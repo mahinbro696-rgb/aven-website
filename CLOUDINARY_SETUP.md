@@ -18,7 +18,7 @@ No Firebase service-account private key is needed. The API validates the Firebas
 - **Disconnect** deletes the stored connection even if the encryption key is unavailable. Existing images in Cloudinary are not deleted.
 - While Settings is visible, status is checked every minute and when the window regains focus. The server caches Cloudinary health checks for up to 60 seconds per instance. A failed health check is shown in red with **Reconnect**. Reconnect performs a fresh check using the saved credentials. If credentials were revoked, enter new credentials and Verify/Connect again.
 
-This settings feature manages the account connection. Product forms still use image URLs; direct product file upload is a separate implementation step. Cloudinary environment variables such as `CLOUDINARY_API_SECRET` are not used by this integration.
+Settings manages the account connection. Add/Edit Product supports direct uploads for the main image and each color variant, while retaining the optional URL fields. Cloudinary environment variables such as `CLOUDINARY_API_SECRET` are not used by this integration.
 
 ## Security and operational limits
 
@@ -32,3 +32,13 @@ This settings feature manages the account connection. Product forms still use im
 ## Validation
 
 `npm run build` includes mocked API tests covering unauthorized/disabled/revoked/stale sessions, cross-origin requests, body limits, real verification sequencing, encrypted persistence, verification expiry/tampering/UID binding, health errors/reconnect, disconnect with a missing key, and secret redaction. Tests make no real Cloudinary or Firebase writes.
+
+## Product image uploads
+
+In Products → Add product or Edit products, use **Upload image** (or drag/drop) for the main image or any color. JPG, PNG and WebP files up to 15 MB are accepted in the browser. Decoded images are resized to at most 2000 pixels on the longest side and re-encoded before upload, removing embedded metadata. The prepared image must be at most 3 MB to stay below the Vercel request limit. GIF/SVG/HEIC are not accepted; export those as JPG, PNG or WebP first.
+
+The authenticated `/api/admin/images` endpoint checks the active admin session, same-origin request, MIME type, file magic bytes and streaming body limit. It reads the encrypted connection fresh for each upload and uploads through Cloudinary's HTTPS image endpoint with server-side Basic authentication. Cloudinary decodes the image; only a validated HTTPS Cloudinary image URL and dimensions are returned. Credentials, unsigned presets and upload signatures are never exposed to the client.
+
+Uploads receive unique public IDs under `aven/products/`, with overwrite disabled. Upload alone does not publish a product: use **Publish Product** or **Save changes** to attach the URL to Firestore. Saving and changing sections/products are blocked while uploads run. Cancel aborts the browser request and preserves the previous product URL; if Cloudinary already received the file, it may remain in the Media Library. Unused/replaced uploads are retained and can be removed manually there. A timeout is reported as uncertain, so check the Media Library before retrying.
+
+Product edits keep storefront publication separate from stock availability: a published product with zero stock is still marked visible in the editor. Unsaved product changes prompt before changing sections or products. CSV exports escape spreadsheet formula inputs.

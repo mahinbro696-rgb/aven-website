@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { collection, deleteField, doc, getDocs, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { categoryKeyForProduct, categoryName } from "@/lib/shop-categories";
 import { isAllowedProductImage, safeImage, type Product } from "@/lib/atelier";
 import { productStockState, stockLabel } from "@/lib/admin";
+import ProductImageUpload from "./ProductImageUpload";
+import { useAdminDraftGuard, useProductUploads } from "./useProductUploads";
+import { withAdminDeadline } from "@/lib/admin-security";
 import { useCategoryOptions } from "./useCategoryOptions";
 
-type Color = { name: string; image: string; stock: string };
+type Color = { key: string; name: string; image: string; stock: string };
 
-function asProduct(id: string, raw: Record<string, unknown>): Product {
+type EditorProduct = Product & { published: boolean };
+function asProduct(id: string, raw: Record<string, unknown>): EditorProduct {
   const createdAt = raw.createdAt as { seconds?: number } | undefined;
   return {
     id,
@@ -30,6 +34,7 @@ function asProduct(id: string, raw: Record<string, unknown>): Product {
         }))
       : [],
     available: raw.available !== false,
+    published: raw.published !== false,
     stock: typeof raw.stock === "number" ? raw.stock : undefined,
     createdAt: typeof createdAt?.seconds === "number" ? createdAt.seconds * 1000 : 0,
   };
@@ -37,7 +42,7 @@ function asProduct(id: string, raw: Record<string, unknown>): Product {
 
 export default function AdminProductEditor() {
   const categoryOptions = useCategoryOptions();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<EditorProduct[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out" | "untracked">("all");
@@ -45,6 +50,10 @@ export default function AdminProductEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [success, setSuccess] = useState(false);
+  const saveLock = useRef(false);
+  const uploads = useProductUploads();
+  const [baseline, setBaseline] = useState("");
   const [form, setForm] = useState({
     name: "",
     category: "কুশিকাটা চাদর",
@@ -56,7 +65,33 @@ export default function AdminProductEditor() {
     colors: [] as Color[],
   });
 
-  async function load(preferId = selectedId) {
+  const dirty = !!selectedId && JSON.stringify(form) !== baseline;
+  useAdminDraftGuard(dirty, saving || uploads.uploading);
+
+  const select = useCallback((product: EditorProduct) => {
+    setSelectedId(product.id);
+    setMessage("");
+    setSuccess(false);
+    const next = {
+      name: product.name,
+      category: categoryName(categoryKeyForProduct(product)),
+      price: String(product.price || ""),
+      oldPrice: String(product.oldPrice || ""),
+      description: product.description,
+      mainImage: product.mainImage,
+      available: product.published,
+      colors: product.colors.map((color) => ({
+        key: crypto.randomUUID(),
+        name: color.name,
+        image: color.image,
+        stock: typeof color.stock === "number" ? String(color.stock) : "",
+      })),
+    };
+    setBaseline(JSON.stringify(next));
+    setForm(next);
+  }, []);
+
+  const load = useCallback(async (preferId = "") => {
     setLoading(true);
     setMessage("");
     try {
@@ -65,32 +100,27 @@ export default function AdminProductEditor() {
       setProducts(data);
       const preferred = data.find((item) => item.id === preferId) || data[0];
       if (preferred) select(preferred);
+      else setSelectedId("");
+      return true;
     } catch {
       setMessage("Products load করা যায়নি। Firebase permission যাচাই করুন।");
+      return false;
     } finally {
       setLoading(false);
     }
-  }
+  }, [select]);
 
-  useEffect(() => { void load(""); }, []);
+  useEffect(() => {
+    // Initial authenticated catalog fetch also controls the loading state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load("");
+  }, [load]);
 
-  function select(product: Product) {
-    setSelectedId(product.id);
-    setMessage("");
-    setForm({
-      name: product.name,
-      category: categoryName(categoryKeyForProduct(product)),
-      price: String(product.price || ""),
-      oldPrice: String(product.oldPrice || ""),
-      description: product.description,
-      mainImage: product.mainImage,
-      available: product.available,
-      colors: product.colors.map((color) => ({
-        name: color.name,
-        image: color.image,
-        stock: typeof color.stock === "number" ? String(color.stock) : "",
-      })),
-    });
+
+  function chooseProduct(product: EditorProduct) {
+    if (saving || uploads.pending.current.size || product.id === selectedId) return;
+    if (dirty && !window.confirm("সংরক্ষণ না করা পরিবর্তন বাদ দিয়ে অন্য product খুলবেন?")) return;
+    select(product);
   }
 
   const filtered = useMemo(() => products.filter((product) => {
@@ -104,7 +134,8 @@ export default function AdminProductEditor() {
   }), [products, search, stockFilter, categoryFilter]);
 
   async function save() {
-    if (!selectedId || saving) return;
+    if (!selectedId || saveLock.current || uploads.pending.current.size) return;
+    setSuccess(false);
 
     const price = Number(form.price);
     const oldPrice = form.oldPrice.trim() ? Number(form.oldPrice) : 0;
@@ -115,8 +146,10 @@ export default function AdminProductEditor() {
       || !form.category.trim()
       || !Number.isFinite(price)
       || price <= 0
+      || price > 1000000
       || !Number.isFinite(oldPrice)
       || oldPrice < 0
+      || oldPrice > 1000000
       || (oldPrice > 0 && oldPrice < price)
     ) {
       setMessage("Product name, category এবং সঠিক price দিন।");
@@ -151,6 +184,7 @@ export default function AdminProductEditor() {
       return;
     }
 
+    saveLock.current = true;
     setSaving(true);
     setMessage("");
 
@@ -168,7 +202,7 @@ export default function AdminProductEditor() {
         ? form.colors.reduce((sum, color) => sum + Number(color.stock), 0)
         : null;
 
-      await setDoc(doc(db, "products", selectedId), {
+      await withAdminDeadline(setDoc(doc(db, "products", selectedId), {
         name: form.name.trim(),
         category: form.category.trim(),
         price: Math.round(price * 100) / 100,
@@ -181,7 +215,7 @@ export default function AdminProductEditor() {
         available: form.available && totalStock !== 0,
         published: form.available,
         updatedAt: serverTimestamp(),
-      }, { merge: true });
+      }, { merge: true }), 25000);
 
       try {
         window.dispatchEvent(new Event("aven:admin-refresh"));
@@ -190,11 +224,14 @@ export default function AdminProductEditor() {
         // Optional cross-component refresh only.
       }
 
-      setMessage("Product update হয়েছে।");
-      await load(selectedId);
-    } catch {
-      setMessage("Product save করা যায়নি। Firestore permission ও connection যাচাই করুন।");
+      setBaseline(JSON.stringify(form));
+      const refreshed = await load(selectedId);
+      setSuccess(true);
+      setMessage(refreshed ? "Product update হয়েছে।" : "Product save হয়েছে, তবে তালিকা refresh হয়নি। পরে Refresh চাপুন।");
+    } catch (error) {
+      setMessage(error instanceof Error && /timed out/.test(error.message) ? "Save-এর উত্তর নিশ্চিত হয়নি। Refresh করে দেখে তারপর আবার Save করুন।" : "Product save করা যায়নি। Firestore permission ও connection যাচাই করুন।");
     } finally {
+      saveLock.current = false;
       setSaving(false);
     }
   }
@@ -209,7 +246,7 @@ export default function AdminProductEditor() {
           <h2>Products</h2>
           <p>Search, stock filter এবং edit</p>
         </div>
-        <button className="av-admin-action" onClick={() => void load()}>Refresh</button>
+        <button className="av-admin-action" disabled={saving || uploads.uploading} onClick={() => { if (!dirty || window.confirm("পরিবর্তন বাদ দিয়ে products refresh করবেন?")) void load(selectedId); }}>Refresh</button>
       </div>
 
       <input
@@ -239,7 +276,8 @@ export default function AdminProductEditor() {
             type="button"
             className={selectedId === product.id ? "is-active" : ""}
             key={product.id}
-            onClick={() => select(product)}
+            disabled={saving || uploads.uploading}
+            onClick={() => chooseProduct(product)}
           >
             <span className="av-admin-product-thumb"><Image src={product.mainImage} alt="" fill sizes="64px" /></span>
             <span>
@@ -265,10 +303,8 @@ export default function AdminProductEditor() {
           </div>
         </div>
 
-        <div className="av-admin-editor-note">
-          <strong>Image URL mode</strong>
-          <span>Direct file upload এখন intentionally বন্ধ। AVEN local path অথবা trusted Cloudinary/Firebase URL ব্যবহার করুন।</span>
-        </div>
+        <div className="av-admin-editor-note"><strong>Product image studio</strong><span>ছবি বাছাই বা drag & drop করুন। Upload শেষে Save changes চাপুন। আপনার আগের ছবি Cloudinary থেকে মুছে যাবে না।</span></div>
+        <fieldset disabled={saving} className="av-admin-edit-fields">
 
         <div className="av-admin-field-grid">
           <label>
@@ -283,14 +319,15 @@ export default function AdminProductEditor() {
 
           <label>
             <span>Sale price</span>
-            <input type="number" min="1" step="0.01" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} />
+            <input type="number" min="0.01" max="1000000" step="0.01" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} />
           </label>
           <label>
             <span>Previous price</span>
-            <input type="number" min="0" step="0.01" value={form.oldPrice} onChange={(event) => setForm({ ...form, oldPrice: event.target.value })} />
+            <input type="number" min="0" max="1000000" step="0.01" value={form.oldPrice} onChange={(event) => setForm({ ...form, oldPrice: event.target.value })} />
           </label>
         </div>
 
+        <ProductImageUpload key={selectedId + ":main"} label="প্রধান পণ্যের ছবি" disabled={saving} onUploaded={(url) => setForm((current) => ({ ...current, mainImage: url }))} onBusy={(busy) => uploads.track("main", busy)} />
         <label className="av-admin-field">
           <span>Main image URL / AVEN path</span>
           <input value={form.mainImage} onChange={(event) => setForm({ ...form, mainImage: event.target.value })} placeholder="/products/pink.png অথবা https://res.cloudinary.com/..." spellCheck={false} />
@@ -314,30 +351,30 @@ export default function AdminProductEditor() {
         <div className="av-admin-variant-editor">
           <div className="av-admin-panel-head">
             <div><h2>Colors & stock</h2><p>প্রতিটি color-এর stock আলাদা করে track করা যাবে।</p></div>
-            <button className="av-admin-action" type="button" onClick={() => setForm({
+            <button className="av-admin-action" type="button" disabled={uploads.uploading} onClick={() => setForm({
               ...form,
-              colors: [...form.colors, { name: "", image: form.mainImage, stock: "" }],
+              colors: [...form.colors, { key: crypto.randomUUID(), name: "", image: form.mainImage, stock: "" }],
             })}>+ Color</button>
           </div>
 
-          {form.colors.map((color, index) => <div className="av-admin-variant-row" key={index}>
-            <input value={color.name} placeholder="Color name" onChange={(event) => setForm({
+          {form.colors.map((color, index) => <div className="av-admin-variant-with-upload" key={color.key}><div className="av-admin-variant-row">
+            <input value={color.name} aria-label={"Color " + (index + 1) + " name"} placeholder="Color name" onChange={(event) => setForm({
               ...form,
               colors: form.colors.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item),
             })} />
-            <input type="number" min="0" max="99999" step="1" value={color.stock} placeholder="Stock (optional)" onChange={(event) => setForm({
+            <input type="number" min="0" max="99999" step="1" value={color.stock} aria-label={"Color " + (index + 1) + " stock"} placeholder="Stock (optional)" onChange={(event) => setForm({
               ...form,
               colors: form.colors.map((item, itemIndex) => itemIndex === index ? { ...item, stock: event.target.value } : item),
             })} />
-            <input value={color.image} placeholder="Image URL (optional)" spellCheck={false} onChange={(event) => setForm({
+            <input value={color.image} aria-label={"Color " + (index + 1) + " image URL"} placeholder="Image URL (optional)" spellCheck={false} onChange={(event) => setForm({
               ...form,
               colors: form.colors.map((item, itemIndex) => itemIndex === index ? { ...item, image: event.target.value } : item),
             })} />
-            <button className="av-admin-action danger" type="button" onClick={() => setForm({
+            <button className="av-admin-action danger" type="button" disabled={uploads.uploading} onClick={() => setForm({
               ...form,
               colors: form.colors.filter((_, itemIndex) => itemIndex !== index),
             })}>Remove</button>
-          </div>)}
+          </div><ProductImageUpload label={"রঙ " + (index + 1) + "-এর ছবি"} disabled={saving} onUploaded={(url) => setForm((current) => ({ ...current, colors: current.colors.map((item) => item.key === color.key ? { ...item, image: url } : item) }))} onBusy={(busy) => uploads.track(color.key, busy)} /></div>)}
         </div>
 
         <label className="av-admin-visibility">
@@ -349,13 +386,14 @@ export default function AdminProductEditor() {
         </label>
 
         <div className="av-admin-savebar">
-          <button className="av-admin-action primary" disabled={saving} onClick={() => void save()}>
-            {saving ? "Saving…" : "Save changes"}
+          <button className="av-admin-action primary" disabled={saving || uploads.uploading} onClick={() => void save()}>
+            {saving ? "Saving…" : uploads.uploading ? "Uploading image…" : "Save changes"}
           </button>
           <a className="av-admin-action" href={"/product/" + encodeURIComponent(selectedId)} target="_blank" rel="noopener noreferrer">View product ↗</a>
         </div>
 
-        {message && <div className="av-admin-security" role="status">{message}</div>}
+        </fieldset>
+        {message && <div className={"av-admin-message " + (success ? "is-success" : "")} role={success ? "status" : "alert"}>{message}</div>}
       </>}
     </section>
   </div>;

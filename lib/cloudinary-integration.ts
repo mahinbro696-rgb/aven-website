@@ -69,6 +69,13 @@ async function read(context: AdminContext): Promise<StoredConnection | null> {
   if (!encrypted) throw new AdminApiError("INVALID_CONFIGURATION", "সংযোগের তথ্য সঠিক নয়। Disconnect করে আবার Connect করুন।");
   return { encrypted, connectedAt: data.fields?.connectedAt?.stringValue || "" };
 }
+// Server-only credentials for authenticated uploads. Never return these from a route.
+export async function connectedCloudinaryCredentials(context: AdminContext): Promise<Credentials> {
+  encryptionKey();
+  const stored = await read(context);
+  if (!stored) throw new AdminApiError("CLOUDINARY_DISCONNECTED", "Settings থেকে Cloudinary connect করুন।", 409);
+  return credentials(open(stored.encrypted, "connection") as Record<string, unknown>);
+}
 function publicDetails(value: Credentials, stored: StoredConnection) {
   return { cloudName: value.cloudName, maskedKey: `•••• ${value.apiKey.slice(-4)}`, connectedAt: stored.connectedAt };
 }

@@ -51,3 +51,7 @@ assert.match(admin.maskEmail('khalifababul16@gmail.com'), /^kh\*+@gmail\.com$/);
 assert.equal(admin.maskPhone('01987744985'), '019*****985');
 assert.ok(admin.maskPersonalText('Customer Name').includes('*'));
 assert.equal(admin.privateAddressPlaceholder('House 1, Dhaka'), '•••••••• •••••••• ••••••••');
+for (const formula of ['=SUM(1,2)', '+cmd', '-2+1', '@SUM(1)', '  =1+1', '\t=1+1', '\n=1+1']) assert.ok(admin.csvCell(formula).startsWith('"\''));
+assert.equal(admin.csvCell('Customer "Name"'), '"Customer ""Name"""');
+assert.equal(admin.csvCell('নাম'), '"নাম"');
+console.log('PASS CSV escaping and spreadsheet formula protection');
