@@ -1,0 +1,23 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const ts = require('typescript');
+const filename = path.resolve(__dirname, '../lib/admin-security.ts');
+const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const mod = { exports: {} };
+vm.runInThisContext(`(function(module,exports){${code}\n})`, { filename })(mod, mod.exports);
+const { adminRecordAllowed, adminSessionFresh, withAdminDeadline, ADMIN_SESSION_MS } = mod.exports;
+(async () => {
+  for (const record of [undefined, {}, { active: false }, { active: 'true' }, { active: 1 }]) assert.equal(adminRecordAllowed(record), false);
+  assert.equal(adminRecordAllowed({ active: true }), true);
+  const now = Date.now();
+  assert.equal(adminSessionFresh(now, now), true);
+  assert.equal(adminSessionFresh(now - ADMIN_SESSION_MS + 1, now), true);
+  for (const authTime of [NaN, Infinity, 0, now + 60001, now - ADMIN_SESSION_MS, now - ADMIN_SESSION_MS - 1]) assert.equal(adminSessionFresh(authTime, now), false);
+  assert.equal(await withAdminDeadline(Promise.resolve('verified'), 20), 'verified');
+  await assert.rejects(withAdminDeadline(new Promise(() => {}), 10), /timed out/);
+  await assert.rejects(withAdminDeadline(Promise.reject(new Error('permission denied')), 20), /permission denied/);
+  console.log('PASS strict admin authorization, session expiry, and fail-closed verification deadlines');
+})().catch(error => { console.error(error); process.exit(1); });

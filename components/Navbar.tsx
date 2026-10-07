@@ -1,407 +1,112 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 
-
-export default function Navbar(){
-
-
-const [open,setOpen]=useState(false);
-
-
-
-return(
-
-
-<motion.nav
-
-initial={{
-opacity:0,
-y:-30
-}}
-
-animate={{
-opacity:1,
-y:0
-}}
-
-transition={{
-duration:.6
-}}
-
-className="
-fixed
-top-5
-left-1/2
--translate-x-1/2
-z-50
-w-[92%]
-max-w-7xl
-bg-white/5
-border
-border-white/10
-backdrop-blur-xl
-rounded-full
-px-6
-py-4
-text-white
-shadow-2xl
-"
-
-
->
-
-
-<div className="
-flex
-items-center
-justify-between
-">
-
-
-
-
-
-{/* LOGO */}
-
-<Link
-
-href="/"
-
-className="
-text-3xl
-font-black
-tracking-widest
-text-yellow-400
-"
-
->
-
-AVEN
-
-</Link>
-
-
-
-
-
-
-
-{/* DESKTOP MENU */}
-
-
-<div className="
-hidden
-md:flex
-items-center
-gap-10
-text-sm
-font-medium
-">
-
-
-<Link
-
-href="/"
-
-className="
-hover:text-yellow-400
-transition
-"
-
->
-
-Home
-
-</Link>
-
-
-
-<Link
-
-href="/shop"
-
-className="
-hover:text-yellow-400
-transition
-"
-
->
-
-Collection
-
-</Link>
-
-
-
-
-<Link
-
-href="/about"
-
-className="
-hover:text-yellow-400
-transition
-"
-
->
-
-About
-
-</Link>
-
-
-
-
-<Link
-
-href="/contact"
-
-className="
-hover:text-yellow-400
-transition
-"
-
->
-
-Contact
-
-</Link>
-
-
-
-
-
-</div>
-
-
-
-
-
-
-
-
-
-{/* RIGHT SIDE */}
-
-
-
-<div className="
-flex
-items-center
-gap-4
-">
-
-
-
-<button
-
-className="
-relative
-text-xl
-hover:text-yellow-400
-transition
-"
-
->
-
-🛒
-
-
-<span
-
-className="
-absolute
--top-2
--right-2
-bg-yellow-500
-text-black
-text-xs
-w-5
-h-5
-rounded-full
-flex
-items-center
-justify-center
-"
-
->
-
-0
-
-</span>
-
-
-</button>
-
-
-
-
-
-
-
-
-{/* MOBILE BUTTON */}
-
-
-<button
-
-onClick={()=>setOpen(!open)}
-
-className="
-md:hidden
-text-2xl
-"
-
->
-
-{
-
-open
-?
-"✕"
-:
-"☰"
-
-}
-
-</button>
-
-
-
-</div>
-
-
-
-</div>
-
-
-
-
-
-
-
-
-
-{/* MOBILE MENU */}
-
-
-{
-
-open &&
-
-
-<motion.div
-
-initial={{
-opacity:0,
-height:0
-}}
-
-animate={{
-opacity:1,
-height:"auto"
-}}
-
-className="
-md:hidden
-mt-5
-border-t
-border-white/10
-pt-5
-flex
-flex-col
-gap-5
-"
-
->
-
-
-<Link
-
-onClick={()=>setOpen(false)}
-
-href="/"
-
-className="
-hover:text-yellow-400
-"
-
->
-
-Home
-
-</Link>
-
-
-
-<Link
-
-onClick={()=>setOpen(false)}
-
-href="/shop"
-
-className="
-hover:text-yellow-400
-"
-
->
-
-Collection
-
-</Link>
-
-
-
-<Link
-
-onClick={()=>setOpen(false)}
-
-href="/about"
-
-className="
-hover:text-yellow-400
-"
-
->
-
-About
-
-</Link>
-
-
-
-<Link
-
-onClick={()=>setOpen(false)}
-
-href="/contact"
-
-className="
-hover:text-yellow-400
-"
-
->
-
-Contact
-
-</Link>
-
-
-
-</motion.div>
-
-
-}
-
-
-
-</motion.nav>
-
-
-);
-
-
+const navItems = [
+  { label: "হোম", href: "/#home" },
+  { label: "কালেকশন", href: "/#collections" },
+  { label: "পণ্য", href: "/#products" },
+  { label: "কেন AVEN", href: "/#why-aven" },
+];
+
+export default function Navbar() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <motion.nav
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-5"
+      aria-label="প্রধান নেভিগেশন"
+    >
+      <div className="section-shell">
+        <div className="glass rounded-[1.4rem] px-4 py-3 sm:px-5">
+          <div className="flex items-center justify-between gap-4">
+            <Link
+              href="/"
+              onClick={() => setOpen(false)}
+              className="group flex min-w-0 items-center gap-3"
+              aria-label="AVEN হোম"
+            >
+              <span className="gold-text text-2xl font-black tracking-[0.26em] sm:text-3xl">
+                AVEN
+              </span>
+              <span className="hidden border-l border-white/10 pl-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40 lg:block">
+                Premium Fashion
+              </span>
+            </Link>
+
+            <div className="hidden items-center gap-7 text-sm font-semibold text-white/65 md:flex">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="transition hover:text-[#f1d98d]"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Link
+                href="/#products"
+                className="gold-btn hidden min-h-0 px-5 py-2.5 text-sm sm:inline-flex"
+              >
+                শপ করুন
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setOpen((value) => !value)}
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white md:hidden"
+                aria-expanded={open}
+                aria-controls="mobile-navigation"
+                aria-label={open ? "মেনু বন্ধ করুন" : "মেনু খুলুন"}
+              >
+                <span className="text-xl leading-none">{open ? "×" : "☰"}</span>
+              </button>
+            </div>
+          </div>
+
+          <AnimatePresence initial={false}>
+            {open && (
+              <motion.div
+                id="mobile-navigation"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.22 }}
+                className="overflow-hidden md:hidden"
+              >
+                <div className="mt-4 grid gap-1 border-t border-white/10 pt-4">
+                  {navItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className="rounded-xl px-3 py-3 text-sm font-semibold text-white/75 transition hover:bg-white/5 hover:text-[#f1d98d]"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+
+                  <Link
+                    href="/#products"
+                    onClick={() => setOpen(false)}
+                    className="gold-btn mt-2 w-full text-sm"
+                  >
+                    পণ্য দেখুন
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </motion.nav>
+  );
 }

@@ -1,1226 +1,258 @@
 "use client";
 
-import {useState} from "react";
+import { useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import AdminIcon from "@/components/admin/AdminIcon";
+import { collection, deleteField, doc, getDocFromServer, serverTimestamp, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { isAllowedProductImage, safeImage } from "@/lib/atelier";
+import { useCategoryOptions } from "@/components/admin/useCategoryOptions";
+import ProductImageUpload from "@/components/admin/ProductImageUpload";
+import { useAdminDraftGuard, useProductUploads } from "@/components/admin/useProductUploads";
 
-import {
-db,
-storage
-} from "@/lib/firebase";
+type Variant = { key: string; name: string; url: string; stock: string };
 
-
-import {
-collection,
-addDoc,
-serverTimestamp
-} from "firebase/firestore";
-
-
-import {
-ref,
-uploadBytes,
-getDownloadURL
-} from "firebase/storage";
-
-
-
-interface ColorItem{
-
-name:string;
-
-image:File|null;
-
-preview:string;
-
-}
-
-
-
-export default function ProductManager(){
-
-
-
-const [loading,setLoading]=useState(false);
-
-const [message,setMessage]=useState("");
-
-
-
-const [mainImage,setMainImage]=useState<File|null>(null);
-
-const [mainPreview,setMainPreview]=useState("");
-
-
-
-const [enableColors,setEnableColors]=useState(false);
-
-
-
-const [colors,setColors]=useState<ColorItem[]>([]);
-
-
-
-
-
-const [form,setForm]=useState({
-
-name:"",
-
-category:"Kushikatha",
-
-oldPrice:"",
-
-discount:"",
-
-price:"",
-
-description:""
-
-});
-
-
-
-
-
-
-
-const handleChange=(e:any)=>{
-
-
-const {
-name,
-value
-}=e.target;
-
-
-
-const updated:any={
-
-...form,
-
-[name]:value
-
+const initial = {
+  name: "",
+  category: "",
+  price: "",
+  oldPrice: "",
+  description: "",
+  stock: "",
 };
 
-
-
-
-
-if(
-name==="oldPrice" ||
-name==="discount"
-){
-
-
-const oldPrice=
-
-name==="oldPrice"
-
-?
-
-Number(value)
-
-:
-
-Number(form.oldPrice);
-
-
-
-const discount=
-
-name==="discount"
-
-?
-
-Number(value)
-
-:
-
-Number(form.discount);
-
-
-
-
-
-
-if(oldPrice && discount){
-
-
-updated.price=
-
-String(
-
-oldPrice -
-(
-oldPrice *
-discount /
-100
-)
-
-);
-
-
+function codeOf(error: unknown): string {
+  return error && typeof error === "object" && "code" in error ? String(error.code) : "";
 }
 
-
+async function timeout<T>(promise: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("TIMEOUT")), 25000);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
-
-
-setForm(updated);
-
-
-};
-
-
-
-
-
-
-
-
-const uploadImage=async(file:File)=>{
-
-
-const imageRef=
-
-ref(
-
-storage,
-
-`products/${Date.now()}-${file.name}`
-
-);
-
-
-
-await uploadBytes(
-
-imageRef,
-
-file
-
-);
-
-
-
-return await getDownloadURL(
-
-imageRef
-
-);
-
-
-};
-
-
-
-
-
-
-
-
-
-const handleMainImage=(e:any)=>{
-
-
-const file=e.target.files?.[0];
-
-
-if(file){
-
-
-setMainImage(file);
-
-
-setMainPreview(
-
-URL.createObjectURL(file)
-
-);
-
-
-}
-
-
-};
-
-
-
-
-
-
-
-
-
-const addColor=()=>{
-
-
-setColors([
-
-...colors,
-
-{
-
-name:"",
-
-image:null,
-
-preview:""
-
-}
-
-]);
-
-
-};
-
-
-
-
-
-
-
-
-
-const updateColorName=(
-
-index:number,
-
-value:string
-
-)=>{
-
-
-const copy=[...colors];
-
-
-copy[index].name=value;
-
-
-setColors(copy);
-
-
-};
-
-
-
-
-
-
-
-
-
-
-const updateColorImage=(
-
-index:number,
-
-file:File
-
-)=>{
-
-
-const copy=[...colors];
-
-
-copy[index].image=file;
-
-
-copy[index].preview=
-
-URL.createObjectURL(file);
-
-
-
-setColors(copy);
-
-
-};
-
-
-
-
-
-
-
-
-
-const removeColor=(index:number)=>{
-
-
-setColors(
-
-colors.filter(
-
-(_,i)=>i!==index
-
-)
-
-);
-
-
-};
-
-
-
-
-
-
-
-
-
-const resetForm=()=>{
-
-
-setForm({
-
-name:"",
-
-category:"Kushikatha",
-
-oldPrice:"",
-
-discount:"",
-
-price:"",
-
-description:""
-
-});
-
-
-setMainImage(null);
-
-setMainPreview("");
-
-setColors([]);
-
-setEnableColors(false);
-
-
-};
-
-
-
-
-
-
-
-
-
-const publishProduct=async()=>{
-
-
-if(!mainImage){
-
-
-alert(
-"Main image required"
-);
-
-
-return;
-
-
-}
-
-
-
-try{
-
-
-setLoading(true);
-
-setMessage("");
-
-
-
-
-const mainURL=
-
-await uploadImage(mainImage);
-
-
-
-
-
-
-
-let colorData:any[]=[];
-
-
-
-
-
-
-if(enableColors){
-
-
-for(
-const color of colors
-){
-
-
-
-if(
-color.name &&
-color.image
-){
-
-
-const imageURL=
-
-await uploadImage(
-color.image
-);
-
-
-
-colorData.push({
-
-name:color.name,
-
-image:imageURL
-
-});
-
-
-}
-
-
-
-}
-
-
-}
-
-
-
-
-
-
-
-
-
-
-await addDoc(
-
-collection(
-db,
-"products"
-),
-
-{
-
-
-name:form.name,
-
-
-category:form.category,
-
-
-oldPrice:Number(
-form.oldPrice
-),
-
-
-discount:Number(
-form.discount
-),
-
-
-price:Number(
-form.price
-),
-
-
-description:form.description,
-
-
-mainImage:mainURL,
-
-
-colors:colorData,
-
-
-createdAt:serverTimestamp()
-
-
-}
-
-);
-
-
-
-
-
-setMessage(
-"Product Published Successfully ✓"
-);
-
-
-resetForm();
-
-
-
-}
-
-catch(error){
-
-
-console.log(error);
-
-
-setMessage(
-"Failed to publish product"
-);
-
-
-
-}
-
-finally{
-
-
-setLoading(false);
-
-
-}
-
-
-};
-return(
-
-<div className="text-white">
-
-
-<h2 className="
-text-3xl
-font-bold
-text-yellow-400
-mb-8
-">
-
-Product Studio
-
-</h2>
-
-
-
-
-
-<div className="
-grid
-md:grid-cols-2
-gap-8
-">
-
-
-
-
-
-
-{/* MAIN IMAGE */}
-
-
-<div>
-
-
-<label className="
-text-yellow-400
-font-bold
-">
-
-Main Product Image
-
-</label>
-
-
-
-
-<div className="
-mt-3
-h-80
-rounded-3xl
-border
-border-yellow-500/30
-bg-black
-overflow-hidden
-flex
-items-center
-justify-center
-">
-
-
-{
-
-mainPreview ?
-
-
-<Image
-
-src={mainPreview}
-
-width={600}
-
-height={600}
-
-alt="main preview"
-
-className="
-w-full
-h-full
-object-cover
-"
-
-/>
-
-
-:
-
-
-<p className="
-text-gray-500
-">
-
-No image selected
-
-</p>
-
-
-}
-
-
-
-</div>
-
-
-
-
-
-<input
-
-type="file"
-
-accept="image/*"
-
-onChange={handleMainImage}
-
-className="
-mt-5
-text-sm
-"
-
-/>
-
-
-
-</div>
-
-
-
-
-
-
-
-
-
-{/* FORM */}
-
-
-
-<div className="
-space-y-4
-">
-
-
-
-
-
-<input
-
-name="name"
-
-value={form.name}
-
-onChange={handleChange}
-
-placeholder="Product Name"
-
-className="aven-input"
-
-/>
-
-
-
-
-
-
-
-<select
-
-name="category"
-
-value={form.category}
-
-onChange={handleChange}
-
-className="aven-input"
-
->
-
-
-<option>
-Kushikatha
-</option>
-
-
-<option>
-Jamdani
-</option>
-
-
-<option>
-Premium Shawl
-</option>
-
-
-</select>
-
-
-
-
-
-
-
-
-
-<input
-
-name="oldPrice"
-
-value={form.oldPrice}
-
-onChange={handleChange}
-
-placeholder="Original Price"
-
-className="aven-input"
-
-/>
-
-
-
-
-
-
-
-<input
-
-name="discount"
-
-value={form.discount}
-
-onChange={handleChange}
-
-placeholder="Discount Percentage"
-
-className="aven-input"
-
-/>
-
-
-
-
-
-
-
-<input
-
-value={form.price}
-
-readOnly
-
-placeholder="Discount Price"
-
-className="
-aven-input
-bg-zinc-800
-"
-
-/>
-
-
-
-
-
-
-
-
-
-<textarea
-
-name="description"
-
-value={form.description}
-
-onChange={handleChange}
-
-placeholder="Product Description"
-
-className="
-aven-input
-h-32
-"
-
-/>
-
-
-
-
-
-
-
-
-
-{/* COLOR SWITCH */}
-
-
-
-<div className="
-flex
-items-center
-gap-3
-mt-5
-">
-
-
-<input
-
-type="checkbox"
-
-checked={enableColors}
-
-onChange={(e)=>
-
-setEnableColors(
-e.target.checked
-)
-
-}
-
-/>
-
-
-<p>
-Enable Multiple Colors
-</p>
-
-
-
-</div>
-
-
-
-
-
-
-
-
-
-{/* COLORS */}
-
-
-{
-
-enableColors &&
-
-
-<div className="
-mt-5
-border
-border-yellow-500/20
-rounded-3xl
-p-5
-space-y-5
-">
-
-
-
-<button
-
-onClick={addColor}
-
-className="
-bg-yellow-500
-text-black
-px-5
-py-3
-rounded-full
-font-bold
-"
-
->
-
-+ Add Color
-
-</button>
-
-
-
-
-
-
-
-{
-
-colors.map((color,index)=>(
-
-
-<div
-
-key={index}
-
-className="
-bg-black
-rounded-2xl
-p-5
-space-y-4
-border
-border-gray-800
-"
-
->
-
-
-
-<input
-
-value={color.name}
-
-placeholder="Color Name"
-
-onChange={(e)=>
-
-updateColorName(
-index,
-e.target.value
-)
-
-}
-
-className="aven-input"
-
-/>
-
-
-
-
-
-
-
-<input
-
-type="file"
-
-accept="image/*"
-
-onChange={(e)=>{
-
-
-const file=e.target.files?.[0];
-
-
-if(file){
-
-updateColorImage(
-index,
-file
-);
-
-
-}
-
-
-
-}}
-
-
-/>
-
-
-
-
-
-
-
-
-
-{
-
-color.preview &&
-
-
-<Image
-
-src={color.preview}
-
-width={150}
-
-height={150}
-
-alt="color"
-
-className="
-rounded-xl
-object-cover
-"
-
-/>
-
-
-}
-
-
-
-
-
-
-
-
-
-<button
-
-onClick={()=>removeColor(index)}
-
-className="
-bg-red-600
-px-5
-py-2
-rounded-full
-"
-
->
-
-Remove Color
-
-</button>
-
-
-
-
-</div>
-
-
-
-))
-
-
-}
-
-
-
-
-</div>
-
-
-
-}
-
-
-
-
-
-
-
-
-
-<button
-
-onClick={publishProduct}
-
-disabled={loading}
-
-className="
-w-full
-mt-6
-bg-yellow-500
-text-black
-font-bold
-py-4
-rounded-full
-hover:scale-105
-transition
-"
-
->
-
-
-{
-
-loading
-
-?
-
-"Publishing..."
-
-:
-
-"Publish Product"
-
-}
-
-
-
-</button>
-
-
-
-
-
-
-
-
-
-{
-
-message &&
-
-
-<p className="
-text-center
-text-yellow-400
-mt-4
-">
-
-{message}
-
-</p>
-
-
-}
-
-
-
-
-
-</div>
-
-
-
-
-
-
-
-</div>
-
-
-
-</div>
-
-
-);
-
-
+export default function ProductManager() {
+  const categoryOptions = useCategoryOptions();
+  const reducedMotion = useReducedMotion();
+  const [form, setForm] = useState(initial);
+  const [selectedId, setSelectedId] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [uploadEpoch, setUploadEpoch] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [success, setSuccess] = useState(false);
+  const stableId = useRef("");
+  const lock = useRef(false);
+  const uploads = useProductUploads();
+  const snapshot = JSON.stringify({ form, imageUrl, variants });
+  const [savedSnapshot, setSavedSnapshot] = useState(snapshot);
+  useAdminDraftGuard(snapshot !== savedSnapshot, busy || uploads.uploading);
+
+  function resetProduct() {
+    if (busy || uploads.pending.current.size) return;
+    if (snapshot !== savedSnapshot && !window.confirm("বর্তমান পরিবর্তন বাদ দিয়ে নতুন পণ্য শুরু করবেন?")) return;
+    setSelectedId("");
+    stableId.current = "";
+    setMessage("");
+    setSuccess(false);
+    setForm(initial);
+    setImageUrl("");
+    setVariants([]);
+    setUploadEpoch((value) => value + 1);
+    setSavedSnapshot(JSON.stringify({ form: initial, imageUrl: "", variants: [] }));
+  }
+
+  async function publish(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (lock.current || uploads.pending.current.size) return;
+
+    setSuccess(false);
+    setMessage("");
+
+    const price = Number(form.price);
+    const oldPrice = form.oldPrice.trim() ? Number(form.oldPrice) : 0;
+    const mainImage = imageUrl.trim();
+
+    if (
+      !form.name.trim()
+      || !form.category.trim()
+      || !Number.isFinite(price)
+      || price <= 0
+      || price > 1000000
+      || !Number.isFinite(oldPrice)
+      || oldPrice < 0
+      || (oldPrice > 0 && oldPrice < price)
+    ) {
+      setMessage("পণ্যের নাম ও সঠিক বিক্রয়মূল্য দিন। পুরোনো মূল্য থাকলে তা বিক্রয়মূল্যের চেয়ে কম হবে না।");
+      return;
+    }
+
+    if (!isAllowedProductImage(mainImage)) {
+      setMessage("Main image হিসেবে /products/... path, Firebase image URL অথবা Cloudinary URL দিন।");
+      return;
+    }
+
+    const names = variants.map((variant) => variant.name.trim());
+    if (names.some((name) => !name) || new Set(names).size !== names.length) {
+      setMessage("প্রতিটি রঙের আলাদা নাম দিন।");
+      return;
+    }
+
+    if ((!variants.length && form.stock.trim() && (!Number.isInteger(Number(form.stock)) || Number(form.stock) < 0 || Number(form.stock) > 99999)) || variants.some((variant) =>
+      variant.stock.trim()
+      && (!Number.isInteger(Number(variant.stock)) || Number(variant.stock) < 0 || Number(variant.stock) > 99999)
+    )) {
+      setMessage("Stock দিলে ০ থেকে ৯৯,৯৯৯-এর মধ্যে পূর্ণ সংখ্যা দিন।");
+      return;
+    }
+
+    if (variants.some((variant) => variant.url.trim() && !isAllowedProductImage(variant.url.trim()))) {
+      setMessage("Color image-এ শুধু AVEN local image, Firebase image URL অথবা Cloudinary URL ব্যবহার করুন।");
+      return;
+    }
+
+    lock.current = true;
+    setBusy(true);
+
+    const id = selectedId || stableId.current || doc(collection(db, "products")).id;
+    stableId.current = id;
+
+    try {
+      const target = doc(db, "products", id);
+      const existing = await timeout(getDocFromServer(target));
+
+      if (
+        existing.exists()
+        && !window.confirm("এই product ID আগে থেকেই আছে। বর্তমান তথ্য update করবেন?")
+      ) {
+        return;
+      }
+
+      const colors = variants.map((variant) => ({
+        name: variant.name.trim(),
+        image: variant.url.trim() ? safeImage(variant.url.trim()) : safeImage(mainImage),
+        ...(variant.stock.trim()
+          ? { stock: Number(variant.stock), available: Number(variant.stock) > 0 }
+          : {}),
+      }));
+
+      const tracked = variants.length > 0 && variants.every((variant) => variant.stock.trim());
+      const totalStock = tracked
+        ? variants.reduce((sum, variant) => sum + Number(variant.stock), 0)
+        : !variants.length && form.stock.trim() ? Number(form.stock) : null;
+
+      await timeout(setDoc(target, {
+        name: form.name.trim(),
+        category: form.category.trim(),
+        price: Math.round(price * 100) / 100,
+        oldPrice: Math.round(oldPrice * 100) / 100,
+        discount: oldPrice > price ? Math.round((1 - price / oldPrice) * 100) : 0,
+        description: form.description.trim(),
+        mainImage: safeImage(mainImage),
+        colors,
+        stock: totalStock === null ? deleteField() : totalStock,
+        published: true,
+        available: totalStock === 0 ? false : true,
+        ...(!existing.exists() ? { createdAt: serverTimestamp() } : {}),
+        updatedAt: serverTimestamp(),
+      }, { merge: true }));
+
+      setSelectedId(id);
+      try {
+        localStorage.setItem("aven:catalog-updated", String(Date.now()));
+        window.dispatchEvent(new Event("aven:admin-refresh"));
+      } catch {
+        // Cross-tab refresh is an enhancement only.
+      }
+      setSuccess(true);
+      setSavedSnapshot(snapshot);
+      setMessage("Product publish হয়েছে। Storefront preview থেকে price, image, Buy Now এবং stock দেখে নিন।");
+    } catch (error) {
+      setMessage(
+        error instanceof Error && error.message === "TIMEOUT"
+          ? "Server response নিশ্চিত হয়নি। একই product আবার publish করার আগে Edit Products থেকে যাচাই করুন।"
+          : /permission|unauthorized/.test(codeOf(error))
+            ? "Firebase এই admin account-এর write permission দিচ্ছে না। Firestore admin authorization যাচাই করুন।"
+            : "Product save করা যায়নি। Internet connection ও Firestore permission যাচাই করুন।"
+      );
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+
+  const preview = isAllowedProductImage(imageUrl.trim()) ? safeImage(imageUrl.trim()) : "";
+
+  const detailsReady = Boolean(form.name.trim() && form.category.trim() && Number(form.price) > 0);
+  const checks = [detailsReady, Boolean(preview), variants.every((v) => Boolean(v.name.trim()))];
+  const completed = checks.filter(Boolean).length;
+  const money = (value: string) => new Intl.NumberFormat("bn-BD", { maximumFractionDigits: 2 }).format(Number(value) || 0);
+  const entrance = reducedMotion ? {} : { initial: { opacity: 0, y: 22 }, animate: { opacity: 1, y: 0 }, transition: { duration: .55 } };
+
+  return <motion.form {...entrance} onSubmit={(event) => void publish(event)} className="av-admin-product av-create">
+    <header className="av-create-intro">
+      <div><span className="av-create-eyebrow">COLLECTION STUDIO</span><h2>নতুন পণ্য সাজান</h2><p>ছবি, দাম ও রঙ যোগ করুন। পাশে দেখুন আপনার পণ্য কেমন দেখাবে।</p></div>
+      <div className="av-create-intro-actions"><span className="av-create-draft"><i /> {success ? "Published" : "Product setup"}</span><button type="button" className="av-admin-action" disabled={busy || uploads.uploading} onClick={resetProduct}>নতুন পণ্য শুরু করুন</button></div>
+    </header>
+    <div className="av-create-progress" aria-label="Product setup progress">
+      {["তথ্য ও দাম", "পণ্যের ছবি", "রঙ ও স্টক"].map((label, index) => <div key={label} className={checks[index] ? "is-complete" : ""}><b>{checks[index] ? "✓" : "0" + (index + 1)}</b><span>{label}</span></div>)}
+      <div className="av-create-progress-track"><motion.span animate={{ width: (completed / 3 * 100) + "%" }} transition={{ duration: reducedMotion ? 0 : .6 }} /></div>
+    </div>
+    <div className="av-create-layout">
+      <fieldset disabled={busy} className="av-create-fields">
+        <legend className="av-create-sr">পণ্যের তথ্য</legend>
+        <section className="av-create-section">
+          <div className="av-create-section-head"><span>01</span><div><h3>পণ্যের তথ্য ও দাম</h3><p>সঠিক নাম ও দাম দিয়ে আপনার কালেকশন সাজান।</p></div><AdminIcon name="categories" /></div>
+          <label>পণ্যের নাম<input required value={form.name} maxLength={150} placeholder="যেমন: প্রিমিয়াম জামদানি চাদর" onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
+          <label>ক্যাটাগরি<select required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option value="" disabled>ক্যাটাগরি নির্বাচন করুন</option>{categoryOptions.map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
+          <div className="av-admin-prices"><label>বিক্রয়মূল্য (টাকা)<input type="number" min="0.01" max="1000000" step="0.01" required value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} placeholder="1190" /></label><label>আগের মূল্য (ঐচ্ছিক)<input type="number" min="0" max="1000000" step="0.01" value={form.oldPrice} onChange={(event) => setForm({ ...form, oldPrice: event.target.value })} placeholder="2500" /></label></div>
+          <label>বিবরণ<textarea rows={4} maxLength={3000} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="কাপড়, ডিজাইন, মাপ ও যত্নের নির্দেশনা লিখুন…" /></label>
+        </section>
+        <section className="av-create-section">
+          <div className="av-create-section-head"><span>02</span><div><h3>পণ্যের প্রধান ছবি</h3><p>নিজের পণ্যের ছবি upload করুন। এটিই স্টোরের প্রথম ছবি হবে।</p></div><AdminIcon name="products" /></div>
+          <div className="av-create-image-tools">
+            <ProductImageUpload key={uploadEpoch} label="প্রধান পণ্যের ছবি" disabled={busy} onUploaded={setImageUrl} onBusy={(uploading) => uploads.track("main", uploading)} />
+            <details className="av-create-url"><summary>আগে থেকে থাকা ছবির লিংক ব্যবহার করুন</summary><label>Main image URL / AVEN path<input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="Firebase অথবা Cloudinary image URL" spellCheck={false} /></label></details>
+            <small>Upload করলে ছবির লিংক স্বয়ংক্রিয়ভাবে যুক্ত হবে।</small>
+          </div>
+        </section>
+        <section className="av-create-section">
+          <div className="av-create-section-head"><span>03</span><div><h3>রঙ ও স্টক</h3><p>প্রতিটি রঙের ছবি ও স্টক আলাদা করে রাখুন।</p></div><span className="av-create-count">{variants.length} রঙ</span></div>
+          <label className="av-create-variant-toggle"><input type="checkbox" checked={variants.length > 0} disabled={uploads.uploading} onChange={(event) => {
+            if (event.target.checked) setVariants([{ key: crypto.randomUUID(), name: "", url: "", stock: "" }]);
+            else if (!variants.some((v) => v.name || v.url || v.stock) || window.confirm("যোগ করা রঙের তথ্য মুছে ফেলবেন?")) setVariants([]);
+          }} /><span>এই পণ্যের রঙের অপশন আছে<small>চালু করলে প্রতিটি রঙের ছবি ও stock আলাদা করে যোগ করতে পারবেন।</small></span></label>
+          {!variants.length && <label>পণ্যের Stock (ঐচ্ছিক)<input type="number" min="0" max="99999" step="1" value={form.stock} placeholder="খালি রাখলে stock ট্র্যাক করা হবে না" onChange={(event) => setForm({ ...form, stock: event.target.value })} /></label>}
+          <AnimatePresence initial={false}>
+            {variants.map((variant, index) => <motion.div layout={!reducedMotion} initial={reducedMotion ? false : { opacity: 0, y: 20, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={reducedMotion ? undefined : { opacity: 0, scale: .95 }} transition={{ duration: reducedMotion ? 0 : .3 }} className="av-create-variant" key={variant.key}>
+              <div className="av-create-variant-head"><strong>Color variant {String(index + 1).padStart(2, "0")}</strong><button type="button" disabled={uploads.uploading} aria-label={"রঙ " + (index + 1) + " সরান"} onClick={() => setVariants((all) => all.filter((item) => item.key !== variant.key))}>সরান ×</button></div>
+              <div className="av-admin-prices"><label>রঙের নাম<input value={variant.name} maxLength={100} onChange={(event) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, name: event.target.value } : item))} required placeholder="যেমন: গোলাপি" /></label><label>Stock (ঐচ্ছিক)<input type="number" min="0" max="99999" step="1" value={variant.stock} placeholder="খালি = স্টক ট্র্যাক নয়" onChange={(event) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, stock: event.target.value } : item))} /></label></div>
+              <details className="av-create-url"><summary>রঙের ছবির লিংক (ঐচ্ছিক)</summary><label>Color image URL (ঐচ্ছিক)<input value={variant.url} onChange={(event) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, url: event.target.value } : item))} placeholder="খালি রাখলে প্রধান ছবি ব্যবহার হবে" spellCheck={false} /></label></details>
+              <ProductImageUpload key={uploadEpoch + variant.key} label={"রঙ " + (index + 1) + "-এর ছবি"} disabled={busy} onUploaded={(url) => setVariants((all) => all.map((item) => item.key === variant.key ? { ...item, url } : item))} onBusy={(uploading) => uploads.track(variant.key, uploading)} />
+            </motion.div>)}
+          </AnimatePresence>
+          {!variants.length && <p className="av-create-hint">রঙের অপশন থাকলে নিচের বাটন থেকে যোগ করুন।</p>}
+          {variants.length > 0 && <motion.button whileTap={reducedMotion ? undefined : { scale: .97 }} type="button" className="av-create-add-color" onClick={() => setVariants((all) => [...all, { key: crypto.randomUUID(), name: "", url: "", stock: "" }])}>＋ আরেকটি রঙ যোগ করুন</motion.button>}
+        </section>
+        <div className="av-create-savebar"><div><strong>{success ? "পণ্য প্রকাশিত হয়েছে" : "প্রকাশ করার জন্য প্রস্তুত?"}</strong><small>{uploads.uploading ? "ছবি upload শেষ হলে Publish করুন।" : "Publish করলে পণ্যটি আপনার স্টোরে দেখা যাবে।"}</small></div><motion.button disabled={uploads.uploading} whileHover={reducedMotion || busy || uploads.uploading ? undefined : { y: -3 }} whileTap={reducedMotion || busy || uploads.uploading ? undefined : { scale: .97 }} type="submit" className="av-admin-publish">{busy ? <><span className="av-create-spinner" /> সংরক্ষণ হচ্ছে…</> : <>Publish Product <AdminIcon name="arrow" /></>}</motion.button></div>
+      </fieldset>
+      <aside className="av-create-preview">
+        <div className="av-create-preview-head"><span>LIVE PREVIEW</span><i /> <small>আপনার পরিবর্তনের সঙ্গে আপডেট হয়</small></div>
+        <div className="av-create-preview-image"><AnimatePresence mode="wait" initial={false}>{preview ? <motion.div key={preview} initial={reducedMotion ? false : { opacity: 0, scale: 1.06 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0 : .35 }}><Image src={preview} alt="Product preview" fill sizes="(max-width: 760px) 90vw, 350px" /></motion.div> : <div className="av-create-placeholder"><AdminIcon name="products" /><span>পণ্যের ছবি যোগ করুন</span></div>}</AnimatePresence>{Number(form.oldPrice) > Number(form.price) && Number(form.price) > 0 && <span className="av-create-discount">{Math.round((1 - Number(form.price) / Number(form.oldPrice)) * 100)}% OFF</span>}</div>
+        <div className="av-create-preview-details"><span>{form.category || "আপনার ক্যাটাগরি"}</span><h3>{form.name || "আপনার পণ্যের নাম"}</h3><div className="av-create-preview-price"><strong>{Number(form.price) > 0 ? "৳ " + money(form.price) : "মূল্য যোগ করুন"}</strong>{Number(form.oldPrice) > Number(form.price) && <del>৳ {money(form.oldPrice)}</del>}</div><div className="av-create-color-chips">{variants.filter((v) => v.name.trim()).map((v) => <span key={v.key}>{v.name}</span>)}</div><p>{form.description || "পণ্যের বিবরণ এখানে দেখা যাবে।"}</p></div>
+        <div className="av-create-preview-note"><AdminIcon name="shield" /><span>এটি একটি প্রিভিউ। Publish Product চাপার পর পণ্যটি স্টোরে প্রকাশিত হবে।</span></div>
+      </aside>
+    </div>
+    <AnimatePresence>{message && <motion.div initial={reducedMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} role={success ? "status" : "alert"} className={"av-admin-message " + (success ? "is-success" : "")}><p>{message}</p>{success && <a href={"/product/" + encodeURIComponent(selectedId)} target="_blank" rel="noopener noreferrer">Published product দেখুন →</a>}</motion.div>}</AnimatePresence>
+  </motion.form>;
 }

@@ -1,0 +1,131 @@
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:3000';
+fs.mkdirSync('verification', { recursive: true });
+const checks = [];
+const pass = (name) => { checks.push(name); console.log('BROWSER_PASS', name); };
+const settle = async (page) => { await page.waitForFunction(() => { const el = document.querySelector('.av'); return el && el.dataset.catalogState !== 'checking'; }, { timeout: 30000 }); };
+const close = async (page) => { await page.locator('dialog[open] .av-dialog-head button').click(); };
+const noOverflow = async (page) => assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2));
+const shot = async (page, name) => { await page.screenshot({ path: `verification/${name}.png`, fullPage: false }); };
+
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  try {
+    // Live product reads only. No live order submission or notification is permitted.
+    const live = await page.request.get(`${base}/api/catalog`);
+    const liveData = await live.json();
+    console.log('LIVE_CATALOG', JSON.stringify({ httpStatus: live.status(), status: liveData.status, publishedProducts: liveData.products?.length }));
+    await page.goto(base); await settle(page);
+    assert(await page.locator('#shop .av-product-card').count() >= 3);
+    assert.equal(await page.locator('.av-collection').count(), 0);
+    pass('Empty live catalog still renders selectable photographed designs; dead banners removed');
+    await page.locator('#shop').scrollIntoViewIfNeeded();
+    await shot(page, 'catalog-desktop');
+    await page.locator('[data-product-id="aven-rose-shawl"] .av-card-image').first().click();
+    await page.waitForURL('**/product/aven-rose-shawl'); await settle(page);
+    await page.locator('.av-detail-title').waitFor();
+    assert((await page.locator('.av-detail-title').textContent()).includes('গোলাপি'));
+    pass('Photograph opens its own product detail page, not the empty shop anchor');
+    await page.locator('.av-detail-quantity .av-quantity button').last().click();
+    await page.locator('.av-detail-buttons .av-purchase-actions button').first().click();
+    await page.locator('[data-order-mode="inquiry"]').waitFor();
+    let url = new URL(await page.locator('.av-inquiry-send').getAttribute('href'));
+    assert.equal(url.hostname, 'wa.me'); assert.equal(url.pathname, '/8801987744985');
+    assert(url.searchParams.get('text').includes('aven-rose-shawl'));
+    assert(url.searchParams.get('text').includes('পরিমাণ: 2'));
+    assert(!url.searchParams.get('text').includes('৳ ০'));
+    pass('Unpriced direct order carries selected design and quantity to the correct WhatsApp number without fake zero prices');
+    await shot(page, 'inquiry-desktop'); await close(page);
+    await page.goto(`${base}/#shop`); await settle(page);
+    await page.locator('[data-product-id="aven-rose-shawl"] .av-add-to-bag').first().click();
+    await page.locator('.av-bag-shell').waitFor(); await close(page);
+    await page.locator('[data-product-id="aven-blue-shawl"] .av-add-to-bag').first().click();
+    assert.equal(await page.locator('dialog[open] .av-bag-line').count(), 2);
+    await page.locator('dialog[open] .av-bag-line .av-quantity button').nth(1).click();
+    await page.locator('dialog[open] .av-bag-remove').first().click();
+    await page.locator('.av-bag-undo button').click();
+    assert.equal(await page.locator('dialog[open] .av-bag-line').count(), 2);
+    pass('Cart supports multiple designs, quantities, removal and undo');
+    await close(page); await page.reload(); await settle(page);
+    assert.equal((await page.locator('.av-bag-count').textContent()).trim(), '3');
+    await page.locator('.av-bag-button').click(); await shot(page, 'bag-desktop');
+    await page.locator('.av-checkout-start').click();
+    url = new URL(await page.locator('.av-inquiry-send').getAttribute('href'));
+    assert(url.searchParams.get('text').includes('aven-blue-shawl') && url.searchParams.get('text').includes('aven-rose-shawl'));
+    pass('Cart survives refresh and the multi-item inquiry contains every selected design');
+    await page.keyboard.press('Escape'); assert.equal(await page.locator('dialog[open]').count(), 0);
+    pass('Native dialog closes with Escape');
+    await page.locator('[data-product-id="aven-rose-shawl"] .av-card-heart').first().click();
+    await page.locator('.av-saved-button').click(); assert.equal(await page.locator('.av-saved-item').count(), 1); await close(page);
+    await page.locator('.av-search-field input').fill('নীল'); assert.equal(await page.locator('#shop .av-product-card').count(), 1);
+    pass('Wishlist and Bengali colour search work with the recovered catalog');
+    await noOverflow(page); assert.deepEqual(errors, []);
+
+    const offline = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await offline.route('**/api/catalog', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ success: false, products: [] }) }));
+    const offlinePage = await offline.newPage(); await offlinePage.goto(base); await settle(offlinePage);
+    assert.equal(await offlinePage.locator('.av').getAttribute('data-catalog-state'), 'unavailable');
+    assert.equal(await offlinePage.locator('#shop .av-product-card').count(), 3);
+    pass('Network failure is not misreported as an empty shop and does not remove the inquiry path');
+    await offline.close();
+
+    const mock = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+    const products = [{ id: 'aven-rose-shawl', name: 'TEST priced shawl', category: 'TEST ONLY', price: 1200, oldPrice: 0, mainImage: '/products/pink.png', description: 'AUTOMATED TEST DATA - NOT A LIVE PRODUCT', available: true, colors: [{ name: 'গোলাপি', image: '/products/pink.png' }], createdAt: 1 }];
+    let lastItems = []; let orderCalls = 0;
+    const quote = (items) => ({ items: items.map((line) => ({ ...line, name: products[0].name, image: products[0].mainImage, unitPrice: 1200, lineTotal: 1200 * line.quantity })), subtotal: items.reduce((n, i) => n + i.quantity * 1200, 0), quoteHash: 'a'.repeat(64), deliveryCharge: null, paymentStatus: 'Not collected' });
+    await mock.route('**/api/catalog', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, status: 'ready', products }) }));
+    await mock.route('**/api/checkout/quote', (route) => { lastItems = route.request().postDataJSON().items; return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, ...quote(lastItems) }) }); });
+    await mock.route('**/api/checkout', (route) => { orderCalls++; return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, orderId: 'TEST-NOT-A-REAL-ORDER', ...quote(lastItems) }) }); });
+    const mp = await mock.newPage(); await mp.goto(base); await settle(mp);
+    await mp.locator('[data-product-id="aven-blue-shawl"] .av-add-to-bag').click(); await close(mp);
+    await mp.locator('[data-product-id="aven-rose-shawl"] .av-purchase-actions button').first().click();
+    await mp.locator('.av-premium-form input[name="name"]').fill('AUTOMATED TEST');
+    await mp.locator('input[name="phone"]').fill('01700000000');
+    await mp.locator('input[name="district"]').fill('TEST DISTRICT');
+    await mp.locator('textarea[name="address"]').fill('AUTOMATED TEST ADDRESS - DO NOT DELIVER');
+    await mp.locator('.av-premium-form button[type="submit"]').click();
+    await mp.locator('.av-review-step').waitFor();
+    assert.equal(lastItems.length, 1); assert.equal(lastItems[0].productId, 'aven-rose-shawl');
+    await mp.locator('.av-consent input').check(); await mp.locator('.av-place-order').click();
+    await mp.locator('.av-receipt').waitFor(); assert.equal(orderCalls, 1);
+    assert((await mp.locator('.av-receipt-ticket code').textContent()).includes('TEST-NOT-A-REAL-ORDER'));
+    await close(mp); assert.equal((await mp.locator('.av-bag-count').textContent()).trim(), '1');
+    pass('Priced Buy Now progresses through address, verified review and mocked receipt without emptying the existing bag');
+    await mock.close();
+
+    for (const width of [390, 360]) {
+      const mobile = await browser.newContext({ viewport: { width, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' });
+      const p = await mobile.newPage(); await p.goto(`${base}/#shop`); await settle(p); await noOverflow(p);
+      await p.locator('#shop .av-product-card').first().scrollIntoViewIfNeeded(); await shot(p, `catalog-mobile-${width}`);
+      await p.locator('[data-product-id="aven-rose-shawl"] .av-card-image').first().click(); await settle(p);
+      await p.locator('.av-mobile-order .av-add-to-bag').click(); await p.locator('.av-bag-shell').waitFor();
+      assert.equal(await p.locator('dialog[open] .av-bag-line').count(), 1);
+      await shot(p, `bag-mobile-${width}`); await noOverflow(p);
+      pass(`Mobile ${width}px detail, sticky Add to Cart and cart drawer work without horizontal overflow`);
+      await mobile.close();
+    }
+    // Admin UI only: block Firebase requests so this cannot read customer orders or publish products.
+    const admin = await browser.newContext();
+    await admin.route('**/*firestore.googleapis.com/**', (route) => route.abort());
+    const ap = await admin.newPage(); await ap.goto(`${base}/admin`);
+    await ap.getByRole('button', { name: 'Products', exact: true }).click();
+    await ap.getByRole('button', { name: /Add Product/ }).click();
+    const form = ap.locator('.av-admin-product'); await form.waitFor();
+    await form.locator('input[name="price"]').fill('1200');
+    assert(await form.evaluate((el) => el.checkValidity()));
+    pass('Admin can enter a positive selling price and use existing photos without entering a discount or uploading an image');
+    await admin.close();
+    fs.writeFileSync('verification/results.json', JSON.stringify({ checks, liveCatalog: { status: liveData.status, count: liveData.products?.length }, liveOrdersSubmitted: 0, mockedOrderSubmissions: orderCalls, browserErrors: errors }, null, 2));
+    console.log(`BROWSER_RESULT ${checks.length} checks passed; live orders submitted: 0; mocked order submissions: ${orderCalls}`);
+  } catch (error) {
+    await page.screenshot({ path: 'verification/failure.png', fullPage: true }).catch(() => {});
+    fs.writeFileSync('verification/failure.txt', String(error.stack));
+    throw error;
+  } finally { await browser.close(); }
+})().catch((error) => { console.error(error); process.exitCode = 1; });
