@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminThemeToggle } from "@/components/admin/AdminTheme";
+
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { collection, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
@@ -314,7 +316,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="av-admin-top-actions">
+          <div className="av-admin-top-actions"><AdminThemeToggle />
             <button type="button" className={"av-admin-privacy-toggle " + (privacyMode ? "is-private" : "is-visible")} onClick={() => {
               setPrivacyMode((value) => !value);
               setRevealedOrders(new Set());

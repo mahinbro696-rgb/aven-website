@@ -1,0 +1,57 @@
+/* Admin-only theme. First visits render dark on the server as well. */
+.av-admin-theme{min-height:100dvh;color-scheme:light}
+.av-admin-theme[data-theme="dark"]{color-scheme:dark;background:#0e1715;color:#e5eee8;--theme-surface:#17231f;--theme-raised:#20302a;--theme-input:#101c18;--theme-border:#34483e;--theme-muted:#adbdaf;--theme-text:#e5eee8}
+.av-admin-theme-toggle{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #d8e1d8;border-radius:11px;background:#fff;color:#244f43;padding:10px 13px;min-height:42px;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .2s,border-color .2s}
+.av-admin-theme-toggle:focus-visible{outline:2px solid #90c9a8;outline-offset:3px}
+.av-admin-login-theme{display:flex;justify-content:flex-end;margin-bottom:18px}
+.av-create-intro-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.av-create-url{border:1px solid #dce5d4;border-radius:11px;padding:13px 15px;font-size:12px;color:#607553;min-width:0}
+.av-create-url summary{cursor:pointer;line-height:1.8;font-weight:600}
+.av-create-url[open] summary{margin-bottom:14px}
+.av-admin .av-create .av-create-variant-toggle{display:flex;align-items:flex-start;gap:12px;padding:16px;border:1px solid #dce5d4;border-radius:12px;background:#f9fbf5;cursor:pointer}
+.av-admin .av-create .av-create-variant-toggle input{width:18px;min-height:18px;height:18px;padding:0;margin-top:4px;flex-shrink:0;accent-color:#47775b}
+.av-create-variant-toggle small{display:block;font-weight:400;font-size:12px;line-height:1.8;margin-top:6px;color:#6a7c6c}
+.av-admin-theme[data-theme="dark"] :is(.av-admin,.av-admin-login){--admin-ink:#e5eee8;--admin-deep:#a4d6b7;--admin-deeper:#d9eddf;--admin-paper:#0e1715;--admin-panel:#17231f;--admin-line:#34483e;--admin-muted:#adbdaf;--admin-shadow:0 8px 26px #0002;background:#0e1715;color:var(--theme-text)}
+.av-admin-theme[data-theme="dark"] .av-admin-side{background:linear-gradient(165deg,#142c23,#101e19)}
+.av-admin-theme[data-theme="dark"] :is(.av-admin-panel,.av-admin-metric,.av-admin-login-card,.av-admin-editor-panel,.av-admin-editor-product,.av-admin-category-pro,.av-admin-custom-category,.av-admin-settings-grid>article,.av-admin-order,.av-admin-order-details,.av-create-section,.av-create-preview,.av-create-preview-head,.av-cloudinary,.av-cloudinary-status,.av-admin-variant-with-upload){background:var(--theme-surface);border-color:var(--theme-border);color:var(--theme-text)}
+.av-admin-theme[data-theme="dark"] :is(input,select,textarea){background:var(--theme-input)!important;border-color:var(--theme-border)!important;color:var(--theme-text)!important}
+.av-admin-theme[data-theme="dark"] :is(input,textarea)::placeholder{color:#92a596!important}
+.av-admin-theme[data-theme="dark"] :is(input,select,textarea):focus{outline-color:#92cbaa;border-color:#92cbaa!important}
+.av-admin-theme[data-theme="dark"] :is(h1,h2,h3,h4,label,strong,.av-admin-field,.av-create,.av-admin-category-name,.av-admin-category-stat b,.av-admin-editor-product-name){color:var(--theme-text)}
+.av-admin-theme[data-theme="dark"] :is(p,small,del,.av-admin-kicker,.av-admin-kicker span,.av-admin-systembar,.av-admin-structure-item,.av-admin-empty,.av-admin-login-brand,.av-create-eyebrow,.av-create-hint,.av-create-placeholder,.av-create-preview-details>span,.av-create-section-head>svg,.av-cloudinary-flow,.av-cloudinary-security,.av-cloudinary-brand p,.av-cloudinary-footnote,.av-admin-order-summary){color:var(--theme-muted)}
+.av-admin-theme[data-theme="dark"] :is(.av-admin-action,.av-admin-preview,.av-admin-privacy-toggle,.av-admin-theme-toggle,.av-admin-segmented,.av-admin-editor-product,.av-admin-product-filter,.av-admin-category-edit,.av-admin-category-toolbar,.av-admin-category-stats,.av-admin-category-create,.av-admin-category-notice,.av-admin-security-note,.av-admin-structure,.av-admin-overview-strip,.av-create-url,.av-create-variant,.av-create-progress,.av-create-savebar,.av-create-preview-note,.av-create-variant-toggle,.av-image-upload,.av-cloudinary-flow b){background:var(--theme-raised);color:var(--theme-text);border-color:var(--theme-border)}
+.av-admin-theme[data-theme="dark"] .av-admin-action:hover:not(:disabled){background:#2c4135}
+.av-admin-theme[data-theme="dark"] :is(.av-admin-action.primary,.av-admin-publish){background:#34664a;color:#fff;border-color:#579d70}
+.av-admin-theme[data-theme="dark"] :is(.av-admin-nav-highlight,.av-admin-segmented button.is-active,.av-admin-editor-product.is-active,.av-create-count,.av-create-draft,.av-create-section-head>span:first-child,.av-create-progress b,.av-create-color-chips span,.av-cloudinary-icon){background:#2b4133;border-color:#45624c;color:#c8e7cf}
+.av-admin-theme[data-theme="dark"] .av-admin-nav button.is-active{color:#d8efde}
+.av-admin-theme[data-theme="dark"] :is(.av-create-preview-image,.av-image-upload-progress>span,.av-create-progress-track){background:#22342b}
+.av-admin-theme[data-theme="dark"] :is(.av-create-progress .is-complete,.av-create-preview-price strong,.av-image-upload-content .is-success,.av-cloudinary-flow .is-done){color:#abe0bd}
+.av-admin-theme[data-theme="dark"] :is(.av-create-progress .is-complete b,.av-cloudinary-flow .is-done b,.av-cloudinary-badge.is-connected,.av-cloudinary-status.is-connected,.av-cloudinary-status.is-connected>span,.av-cloudinary-notice.is-success,.av-admin-message.is-success){background:#1d3829;border-color:#3d6b4c;color:#b1e7c1}
+.av-admin-theme[data-theme="dark"] :is(.av-admin-action.danger,.av-create-variant-head button,.av-cloudinary-badge.is-error,.av-cloudinary-status.is-error,.av-cloudinary-status.is-error>span,.av-cloudinary-notice.is-error,.av-admin-message,.av-image-upload.has-error){background:#392422;border-color:#8b544e;color:#ffb9ad}
+.av-admin-theme[data-theme="dark"] .av-image-upload-content .is-error{color:#ffb9ad}
+.av-admin-theme[data-theme="dark"] :is(.av-cloudinary-setup,.av-cloudinary-badge.is-setup_required,.av-create-discount){background:#352f20;border-color:#77643c;color:#e7ce93}
+.av-admin-theme[data-theme="dark"] :is(.av-create-section-head,.av-create-preview-head,.av-create-preview-note,.av-cloudinary-footnote,.av-admin-list-row,.av-admin-panel-head,.av-admin-category-row,.av-admin-category-item){border-color:var(--theme-border)}
+.av-admin-theme[data-theme="dark"] .av-admin-welcome{background:linear-gradient(110deg,#284b37,#19362a);border-color:#44644d}
+.av-admin-theme[data-theme="dark"] .av-admin-welcome .av-admin-action{background:#e8dbbf;color:#243f32;border-color:#e8dbbf}
+.av-admin-theme[data-theme="dark"] .av-admin-login-story{background:linear-gradient(145deg,#122a20,#0c1a14)}
+.av-admin-theme[data-theme="dark"] .av-admin-login-story :is(p,small){color:#c0d4c4}
+.av-admin-theme[data-theme="dark"] .av-admin-login-story h2{color:#edf5eb}
+@media(max-width:760px){.av-create-intro-actions{width:100%;justify-content:space-between}.av-admin-theme-toggle{font-size:11px;padding:10px}.av-admin-top-actions{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.av-admin-theme-toggle{transition:none}}
+.av-admin-theme[data-theme="dark"] :is(.av-admin-product-wrap,.av-admin-editor-list,.av-admin-editor-form,.av-admin-category-stats article,.av-admin-category-pro.is-empty,.av-admin-notice,.av-admin-security,.av-admin-category-product-chips span){background:var(--theme-surface);border-color:var(--theme-border);color:var(--theme-text)}
+.av-admin-theme[data-theme="dark"] .av-admin-editor-products>button{color:var(--theme-text)}
+.av-admin-theme[data-theme="dark"] :is(.av-admin-editor-products>button:hover,.av-admin-editor-products>button.is-active,.av-admin-segmented button.is-active){background:#2b4133;border-color:#45624c;color:#c8e7cf}
+.av-admin-theme[data-theme="dark"] .av-admin-status{background:#263d30;color:#c3dcc8}
+.av-admin-theme[data-theme="dark"] .av-admin-status.pending{background:#352f20;color:#e7ce93}
+.av-admin-theme[data-theme="dark"] :is(.av-admin-status.confirmed,.av-admin-status.shipped){background:#213340;color:#b4d4ed}
+.av-admin-theme[data-theme="dark"] .av-admin-status.packed{background:#352b40;color:#d5bde8}
+.av-admin-theme[data-theme="dark"] .av-admin-status.cancelled{background:#392422;color:#ffb9ad}
+.av-admin-theme[data-theme="dark"] :is(.av-admin-mobile-toggle,.av-admin-settings-note code){background:var(--theme-raised);border-color:var(--theme-border);color:var(--theme-text)}
+.av-admin-theme[data-theme="dark"] :is(.av-create-preview-head>span,.av-create-progress>div:not(.av-create-progress-track),.av-admin-category-status-line){color:#b7d4bd}
+.av-admin-theme[data-theme="dark"] .av-admin-privacy-toggle.is-visible{background:#352f20;border-color:#77643c;color:#e7ce93}
+.av-admin-theme[data-theme="dark"] :is(.av-admin-empty,.av-admin-category-lock,.av-admin-category-visibility,.av-admin-stock-badge){background:var(--theme-raised);border-color:var(--theme-border);color:#c3dcc8}
+.av-admin-theme[data-theme="dark"] :is(.av-admin-category-stats span,.av-admin-category-type,.av-admin-category-count,.av-admin-category-section-title>span){color:var(--theme-muted)}
+.av-admin-theme[data-theme="dark"] :is(.av-admin-stock-badge.is-low,.av-admin-category-visibility.is-hidden){background:#352f20;color:#e7ce93}
+.av-admin-theme[data-theme="dark"] .av-admin-stock-badge.is-out{background:#392422;color:#ffb9ad}
+.av-admin-theme[data-theme="dark"] .av-admin-stock-badge.is-healthy{background:#1d3829;color:#b1e7c1}
+.av-admin-theme[data-theme="dark"] .av-admin-category-order button{background:var(--theme-raised);border-color:var(--theme-border);color:var(--theme-text)}

@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminThemeToggle } from "@/components/admin/AdminTheme";
+
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { browserSessionPersistence, getIdTokenResult, onIdTokenChanged, setPersistence, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
@@ -150,7 +152,7 @@ export default function AdminAuthGate({ children }: { children: ReactNode }) {
         <div className="av-admin-login-editorial"><p>A LITTLE MORE EFFORTLESS.</p><h2>Behind every<br /> beautiful<br /> <em>collection.</em></h2><span>আপনার স্টোর পরিচালনার প্রতিটি কাজ,<br />একটি সুন্দর ও সহজ জায়গায়।</span></div>
         <div className="av-admin-login-story-foot"><AdminIcon name="shield" /><span>Private access. Complete control.</span></div>
       </aside>
-      <section className="av-admin-login-card">
+      <section className="av-admin-login-card"><div className="av-admin-login-theme"><AdminThemeToggle /></div>
         <span className="av-admin-login-emblem"><AdminIcon name="shield" /></span>
         <p className="av-admin-login-kicker">AVEN / STORE CONTROL</p>
         <h1>Admin sign in</h1>
